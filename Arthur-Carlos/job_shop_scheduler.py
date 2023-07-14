@@ -20,7 +20,7 @@ from bisect import bisect_right
 import dwavebinarycsp
 
 
-def get_jss_bqm(job_dict, max_time=None, stitch_kwargs=None):
+def get_jss_bqm(job_dict, machine_downtimes, max_time=None, stitch_kwargs=None):
     """Returns a BQM to the Job Shop Scheduling problem.
 
     Args:
@@ -71,7 +71,7 @@ def get_jss_bqm(job_dict, max_time=None, stitch_kwargs=None):
     if stitch_kwargs == None:
         stitch_kwargs = {}
 
-    scheduler = JobShopScheduler(job_dict, max_time)
+    scheduler = JobShopScheduler(job_dict, machine_downtimes, max_time)
     return scheduler.get_bqm(stitch_kwargs)
 
 
@@ -118,25 +118,7 @@ class KeyList:
 
 
 class JobShopScheduler:
-    def __init__(self, job_dict, max_time=None):
-        """
-        Args:
-            job_dict: A dictionary. It describes the jobs that need to be scheduled. Namely, the
-              dict key is the name of the job and the dict value is the ordered list of tasks that
-              the job must do. (See Job Dict Details below.)
-            max_time: An integer. The upper bound on the amount of time the schedule can take.
-
-        Job Dict Details:
-            The job_dict has the following format:
-              {"job_name": [(machine_name, integer_time_duration_on_machine), ..],
-               ..
-               "another_job_name": [(some_machine, integer_time_duration_on_machine), ..]}
-
-            A small job_dict example:
-              jobs = {"job_a": [("mach_1", 2), ("mach_2", 2), ("mach_3", 2)],
-                      "job_b": [("mach_3", 3), ("mach_2", 1), ("mach_1", 1)],
-                      "job_c": [("mach_2", 2), ("mach_1", 3), ("mach_2", 1)]}
-        """
+    def __init__(self, job_dict,machine_downtimes, max_time=None):
 
         self.tasks = []
         self.last_task_indices = []
@@ -144,12 +126,10 @@ class JobShopScheduler:
         self.csp = dwavebinarycsp.ConstraintSatisfactionProblem(dwavebinarycsp.BINARY)
 
         # Populates self.tasks and self.max_time
-        self._process_data(job_dict)
+        self._process_data(job_dict,machine_downtimes)
 
-    def _process_data(self, jobs):
-        """Process user input into a format that is more convenient for JobShopScheduler functions.
-        """
-        # Create and concatenate Task objects
+    def _process_data(self, jobs,machine_downtimes):
+        
         tasks = []
         last_task_indices = [-1]    # -1 for zero-indexing
         total_time = 0  # total time of all jobs
@@ -171,6 +151,7 @@ class JobShopScheduler:
         # Update values
         # Note: max_job_time is a lowerbound to the time it takes for the optimal schedule. This is
         #   because the longest job must be a part of this optimal schedule.
+        self.machine_downtimes = machine_downtimes
         self.tasks = tasks
         self.last_task_indices = last_task_indices[1:]
         self.max_job_time = max_job_time - 1    # -1 to account for zero-indexing
@@ -271,6 +252,14 @@ class JobShopScheduler:
                 label = get_label(task, self.max_time - t)
                 self.csp.fix_variable(label, 0)
 
+    def _remove_machine_downtime(self):
+        for task in self.tasks:
+            if self.machine_downtimes.get(task.machine) is not None:
+                for downtime in self.machine_downtimes[task.machine]:
+                    label = get_label(task, downtime)
+                    self.csp.fix_variable(label,0)
+                    #TODO:set following variables to 0
+
     def _edit_bqm_for_shortest_schedule(self, bqm):
         # Edit BQM to encourage the shortest schedule
         # Overview of this added penalty:
@@ -348,6 +337,7 @@ class JobShopScheduler:
         self._add_precedence_constraint()
         self._add_share_machine_constraint()
         self._remove_absurd_times()
+        self._remove_machine_downtime()
 
         # Get BQM
         bqm = dwavebinarycsp.stitch(self.csp, max_graph_size = 8)
