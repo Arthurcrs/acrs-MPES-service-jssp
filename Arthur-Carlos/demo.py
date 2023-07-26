@@ -13,23 +13,23 @@ jobs = {"job_1": [("machine_1", 2), ("machine_2", 1)],
         "job_2": [("machine_2", 1)],
         "job_3": [("machine_3", 2)]}
 
-machine_downtimes = {"machine_3" : [0,1],"machine_2" : [0,1,2,3]}
+machine_downtimes = {"machine_3" : [0,1,4,5]}
 # TODO: machine_uptimes = {}
 
-max_time = 4	  # Upperbound on how long the schedule can be; 4 is arbitrary
+max_time = 7	  # Upperbound on how long the schedule can be; 4 is arbitrary
 bqm = get_jss_bqm(jobs,machine_downtimes, max_time)
 
 # Submit BQM
 # Note: may need to tweak the chain strength and the number of reads
 
-#sampler = ExactSolver()
-#sampleset = sampler.sample(bqm)
+sampler = ExactSolver()
+sampleset = sampler.sample(bqm)
 
-sampler = EmbeddingComposite(DWaveSampler())
-sampleset = sampler.sample(bqm,
-                            chain_strength=2,
-                            num_reads=1000,
-                            label='Example - Job Shop Scheduling')
+#sampler = EmbeddingComposite(DWaveSampler())
+#sampleset = sampler.sample(bqm,
+#                            chain_strength=2,
+#                            num_reads=1000,
+#                            label='Example - Job Shop Scheduling')
 
 
 

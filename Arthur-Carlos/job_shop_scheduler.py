@@ -20,6 +20,27 @@ from bisect import bisect_right
 import dwavebinarycsp
 
 
+def merge_intervals(intervals):
+    if not intervals:
+        return []
+
+    # Sort intervals based on start times
+    sorted_intervals = sorted(intervals, key=lambda x: x[0])
+
+    # Initialize the result list with the first interval
+    result = [sorted_intervals[0]]
+
+    # Merge overlapping intervals
+    for interval in sorted_intervals[1:]:
+        prev_interval = result[-1]
+        if interval[0] <= prev_interval[1]:  # Overlapping intervals
+            prev_interval[1] = max(prev_interval[1], interval[1])
+        else:
+            result.append(interval)
+
+    return result
+
+
 def get_jss_bqm(job_dict, machine_downtimes, max_time=None, stitch_kwargs=None):
     """Returns a BQM to the Job Shop Scheduling problem.
 
@@ -253,12 +274,23 @@ class JobShopScheduler:
                 self.csp.fix_variable(label, 0)
 
     def _remove_machine_downtime(self):
-        for task in self.tasks:
-            if self.machine_downtimes.get(task.machine) is not None:
-                for downtime in self.machine_downtimes[task.machine]:
-                    label = get_label(task, downtime)
-                    self.csp.fix_variable(label,0)
-                    #TODO:set following variables to 0
+        for machine in self.machine_downtimes.keys():
+            tasks_with_machine = [task for task in self.tasks if task.machine == machine]
+            for task in tasks_with_machine:
+                intervals = [] # Downtime intervals
+                for begin_downtime in self.machine_downtimes[task.machine]:
+                    start = begin_downtime - task.duration + 1
+                    stop = begin_downtime + 1
+                    if start < 0:
+                        start = 0
+                    interval = [start,stop]
+                    intervals.append(interval)
+                equivalent_intervals = merge_intervals(intervals) # Intervals without overlap ex: [0,3] with [2,4] becomes [0,4]
+                for e_interval in equivalent_intervals:
+                    for time in range(e_interval[0], e_interval[1]):
+                        label = get_label(task, time)
+                        print(label)
+                        self.csp.fix_variable(label,0)            
 
     def _edit_bqm_for_shortest_schedule(self, bqm):
         # Edit BQM to encourage the shortest schedule
