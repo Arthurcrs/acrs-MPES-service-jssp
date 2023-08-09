@@ -18,28 +18,7 @@ from re import match
 from bisect import bisect_right
 
 import dwavebinarycsp
-
-
-def merge_intervals(intervals):
-    if not intervals:
-        return []
-
-    # Sort intervals based on start times
-    sorted_intervals = sorted(intervals, key=lambda x: x[0])
-
-    # Initialize the result list with the first interval
-    result = [sorted_intervals[0]]
-
-    # Merge overlapping intervals
-    for interval in sorted_intervals[1:]:
-        prev_interval = result[-1]
-        if interval[0] <= prev_interval[1]:  # Overlapping intervals
-            prev_interval[1] = max(prev_interval[1], interval[1])
-        else:
-            result.append(interval)
-
-    return result
-
+from utils import *
 
 def get_jss_bqm(job_dict, machine_downtimes, max_time=None, stitch_kwargs=None):
     if stitch_kwargs == None:
@@ -97,6 +76,7 @@ class JobShopScheduler:
         self.tasks = []
         self.last_task_indices = []
         self.max_time = max_time    # will get decremented by 1 for zero-indexing; see _process_data
+        self.unique_labels = []
         if machine_downtimes == None:
             machine_downtimes = {}
         else:
@@ -195,7 +175,7 @@ class JobShopScheduler:
                             self.csp.add_constraint(valid_values, {current_label,
                                                                    get_label(other_task, tt)})
 
-    def _remove_absurd_times(self):
+    def _get_absurd_times_labels(self):
         """Sets impossible task times in self.csp to 0.
         """
         # Times that are too early for task
@@ -209,7 +189,8 @@ class JobShopScheduler:
 
             for t in range(predecessor_time):
                 label = get_label(task, t)
-                self.csp.fix_variable(label, 0)
+                add_label_if_unique(self.unique_labels,label)
+                # self.csp.fix_variable(label, 0)
 
             predecessor_time += task.duration
 
@@ -227,9 +208,10 @@ class JobShopScheduler:
             successor_time += task.duration
             for t in range(successor_time):
                 label = get_label(task, self.max_time - t)
-                self.csp.fix_variable(label, 0)
+                add_label_if_unique(self.unique_labels,label)
+                # self.csp.fix_variable(label, 0)
 
-    def _remove_machine_downtimes(self):
+    def _get_machine_downtimes_labels(self):
         for machine in self.machine_downtimes.keys():
             tasks_with_machine = [task for task in self.tasks if task.machine == machine]
             for task in tasks_with_machine:
@@ -245,12 +227,19 @@ class JobShopScheduler:
                 for e_interval in equivalent_intervals:
                     for time in range(e_interval[0], e_interval[1]):
                         label = get_label(task, time)
-                        print(label)
-                        try:
-                            self.csp.fix_variable(label,0)
-                        except:
-                            print("Variable is not part of the constraint satisfaction problem")
-                        
+                        add_label_if_unique(self.unique_labels,label)
+                        # self.csp.fix_variable(label,0)
+    
+    def _remove_impossible_times(self):
+
+        self._get_absurd_times_labels()
+        self._get_machine_downtimes_labels()
+
+        for label in self.unique_labels:
+
+            print(label)
+            self.csp.fix_variable(label,0)
+
     def _edit_bqm_for_shortest_schedule(self, bqm):
         # Edit BQM to encourage the shortest schedule
         # Overview of this added penalty:
@@ -327,11 +316,10 @@ class JobShopScheduler:
         self._add_one_start_constraint()
         self._add_precedence_constraint()
         self._add_share_machine_constraint()
-        self._remove_absurd_times()
-        self._remove_machine_downtimes()
+        self._remove_impossible_times()
 
         # Get BQM
-        bqm = dwavebinarycsp.stitch(self.csp, max_graph_size = 10)
+        bqm = dwavebinarycsp.stitch(self.csp, max_graph_size = 20)
 
         # Edit BQM to encourage an optimal schedule
         self._edit_bqm_for_shortest_schedule(bqm)
