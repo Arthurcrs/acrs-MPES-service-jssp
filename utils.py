@@ -18,7 +18,7 @@ def merge_intervals(intervals):
 
     return result
 
-def add_label_if_unique(my_list, string_to_add):
+def add_label_to_remove(my_list, string_to_add):
     if string_to_add not in my_list:
         my_list.append(string_to_add)
     return my_list

@@ -189,8 +189,7 @@ class JobShopScheduler:
 
             for t in range(predecessor_time):
                 label = get_label(task, t)
-                add_label_if_unique(self.unique_labels,label)
-                # self.csp.fix_variable(label, 0)
+                add_label_to_remove(self.unique_labels,label)
 
             predecessor_time += task.duration
 
@@ -208,8 +207,7 @@ class JobShopScheduler:
             successor_time += task.duration
             for t in range(successor_time):
                 label = get_label(task, self.max_time - t)
-                add_label_if_unique(self.unique_labels,label)
-                # self.csp.fix_variable(label, 0)
+                add_label_to_remove(self.unique_labels,label)
 
     def _get_machine_downtimes_labels(self):
         for machine in self.machine_downtimes.keys():
@@ -227,8 +225,7 @@ class JobShopScheduler:
                 for e_interval in equivalent_intervals:
                     for time in range(e_interval[0], e_interval[1]):
                         label = get_label(task, time)
-                        add_label_if_unique(self.unique_labels,label)
-                        # self.csp.fix_variable(label,0)
+                        add_label_to_remove(self.unique_labels,label)
     
     def _remove_impossible_times(self):
 
@@ -236,8 +233,6 @@ class JobShopScheduler:
         self._get_machine_downtimes_labels()
 
         for label in self.unique_labels:
-
-            print(label)
             self.csp.fix_variable(label,0)
 
     def _edit_bqm_for_shortest_schedule(self, bqm):

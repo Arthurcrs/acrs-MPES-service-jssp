@@ -13,12 +13,12 @@ import pandas as pd
 
 # Problem Definition
 
-jobs = {"job_1": [("machine_1", 2), ("machine_2", 1)],
-        "job_2": [("machine_2", 1)],
+jobs = {"job_1": [("machine_1", 2)],
+        "job_2": [("machine_2", 1),("machine_3", 1)],
         "job_3": [("machine_3", 2)]}
 
-machine_downtimes = {"machine_3" : [0,1,4,5],
-                     "machine_1" : [1,4]}
+machine_downtimes = {"machine_3" : [0,1,5],
+                     "machine_1" : [1,2,5]}
 
 
 # machine_downtimes = {}
@@ -27,7 +27,7 @@ machine_downtimes = {"machine_3" : [0,1,4,5],
 
 # Construct a BQM for the jobs
 
-max_time = None
+max_time = 6
 bqm = get_jss_bqm(jobs,machine_downtimes, max_time)
 
 # # Submit BQM
@@ -44,6 +44,13 @@ sampleset = sampler.sample(bqm)
 file = open('Results', 'w')
 solution = sampleset.first.sample
 file.write(str(solution))
+
+
+file = open("Clique_Result.txt", "w")
+file.close()
+Clique_Result = sampleset.first
+file_clique = open("Clique_Result.txt", "a")
+file_clique.write(str(Clique_Result) + "\n")
 
 selected_nodes = [k for k, v in solution.items() if v == 1]
 
