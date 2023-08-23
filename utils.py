@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 
 def merge_intervals(intervals):
     if not intervals:
@@ -49,9 +50,9 @@ def solution_to_dataframe(solution, jobs):
             machine, duration = jobs[job_name][task]
 
             # Append information to the lists
-            job_names.append(job_name)
+            job_names.append(get_numeric_part(job_name))
             positions.append(task)
-            machines.append(machine)
+            machines.append(get_numeric_part(machine))
             durations.append(duration)
             start_times.append(start_time)
 
@@ -67,3 +68,7 @@ def solution_to_dataframe(solution, jobs):
     df['end_time'] = df['start_time'] + df['duration']
 
     return df
+
+def get_numeric_part(s):
+    result = re.findall(r'\d+', s)
+    return int(''.join(result)) if result else None

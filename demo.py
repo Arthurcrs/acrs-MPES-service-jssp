@@ -1,15 +1,9 @@
-
 from __future__ import print_function
-
 from dimod.reference.samplers import ExactSolver
-
 from dwave.system.composites import EmbeddingComposite
 from dwave.system.samplers import DWaveSampler
-
 from job_shop_scheduler import get_jss_bqm, is_auxiliary_variable
-import pandas as pd
-
-
+from utils import *
 
 # Problem Definition
 
@@ -19,11 +13,6 @@ jobs = {"job_1": [("machine_1", 2)],
 
 machine_downtimes = {"machine_3" : [0,1,5],
                      "machine_1" : [1,2,5]}
-
-
-# machine_downtimes = {}
-
-# TODO: machine_uptimes = {}
 
 # Construct a BQM for the jobs
 
@@ -41,18 +30,16 @@ sampleset = sampler.sample(bqm)
 # #                            num_reads=1000,
 # #                            label='Example - Job Shop Scheduling')
 
-file = open('Results', 'w')
-solution = sampleset.first.sample
+solution = sampleset.first
+
+df = solution_to_dataframe(solution.sample,jobs)
+df.to_csv('solution.csv', index=False)
+
+file = open("solution.txt", "w")
 file.write(str(solution))
-
-
-file = open("Clique_Result.txt", "w")
 file.close()
-Clique_Result = sampleset.first
-file_clique = open("Clique_Result.txt", "a")
-file_clique.write(str(Clique_Result) + "\n")
 
-selected_nodes = [k for k, v in solution.items() if v == 1]
+selected_nodes = [k for k, v in solution.sample.items() if v == 1]
 
 # Parse node information
 task_times = {k: [-1]*len(v) for k, v in jobs.items()}
@@ -77,7 +64,6 @@ for job, times in task_times.items():
     print("{0:9}: {1}".format(job, times))
     for time in times:
         tasks_test.append([job,time])
-
 
 print("\nMachines and their downtimes")
 print(machine_downtimes)
