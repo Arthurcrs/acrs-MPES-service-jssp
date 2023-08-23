@@ -1,3 +1,5 @@
+import pandas as pd
+
 def merge_intervals(intervals):
     if not intervals:
         return []
@@ -22,3 +24,46 @@ def add_label_to_remove(my_list, string_to_add):
     if string_to_add not in my_list:
         my_list.append(string_to_add)
     return my_list
+
+def solution_to_dataframe(solution, jobs):
+    # Initialize lists to store job, position (task), machine, duration, and start_time information
+    job_names = []
+    positions = []
+    machines = []
+    durations = []
+    start_times = []
+
+    # Iterate through the solution and extract relevant information
+    for key, value in solution.items():
+        if key.startswith('job') and value == 1:
+            # Splitting the key to extract job, task (position), and start time
+            job_task_time = key.split('_')
+            job_name = '_'.join(job_task_time[:2])
+            task, start_time = job_task_time[-1].split(',')
+
+            # Convert task and start_time to integers
+            task = int(task)
+            start_time = int(start_time)
+
+            # Retrieve corresponding machine and duration from the problem definition
+            machine, duration = jobs[job_name][task]
+
+            # Append information to the lists
+            job_names.append(job_name)
+            positions.append(task)
+            machines.append(machine)
+            durations.append(duration)
+            start_times.append(start_time)
+
+    # Create a DataFrame from the extracted information
+    df = pd.DataFrame({
+        'job': job_names,
+        'position': positions,
+        'machine': machines,
+        'duration': durations,
+        'start_time': start_times
+    })
+
+    df['end_time'] = df['start_time'] + df['duration']
+
+    return df
