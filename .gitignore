@@ -14,5 +14,6 @@
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+Gantt-Diagrams/*
 
 # End of https://www.toptal.com/developers/gitignore/api/virtualenv
