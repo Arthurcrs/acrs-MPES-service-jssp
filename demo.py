@@ -34,10 +34,15 @@ solution = sampleset.first
 
 df = solution_to_dataframe(solution.sample,jobs)
 df.to_csv('solution.csv', index=False)
+print("Solution saved into solution.csv")
 
 file = open("solution.txt", "w")
 file.write(str(solution))
 file.close()
+print("Solution saved as text in solution.txt")
+
+export_gantt_diagram("image")
+print("Gantt Diagram can be vizualized")
 
 # selected_nodes = [k for k, v in solution.sample.items() if v == 1]
 

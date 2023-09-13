@@ -1,5 +1,10 @@
 import pandas as pd
 import re
+import matplotlib.colors as mcolors
+import numpy as np
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 def merge_intervals(intervals):
     if not intervals:
@@ -27,14 +32,12 @@ def add_label_to_remove(my_list, string_to_add):
     return my_list
 
 def solution_to_dataframe(solution, jobs):
-    # Initialize lists to store job, position (task), machine, duration, and start_time information
     job_names = []
     positions = []
     machines = []
     durations = []
     start_times = []
 
-    # Iterate through the solution and extract relevant information
     for key, value in solution.items():
         if key.startswith('job') and value == 1:
             # Splitting the key to extract job, task (position), and start time
@@ -72,3 +75,38 @@ def solution_to_dataframe(solution, jobs):
 def get_numeric_part(s):
     result = re.findall(r'\d+', s)
     return int(''.join(result)) if result else None
+
+def getColors(n):
+    colormap = cm.viridis
+    colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
+    return colors
+
+def export_gantt_diagram(image_title):
+    directory_path = "Gantt-Diagrams/"
+    solution_csv_file_path = 'solution.csv'
+
+    df = pd.read_csv(solution_csv_file_path)
+    unique_jobs = df['job'].unique()
+    conditions = [(df['job'] == job) for job in unique_jobs]
+    values = getColors(len(unique_jobs))
+    df['color'] = np.select(conditions, values)
+
+    fig, ax = plt.subplots(figsize=(16,6))
+    axx = ax.barh(df['machine'], df['duration'], align='center', left=df['start_time'], color=df['color'], label=df['position'], linewidth=3, alpha=.5)
+
+    ax.set_xlim(0, df['end_time'].max())
+
+    fig.text(0.5, 0.04, 'Time Unit', ha='center')
+    fig.text(0.1, 0.5, 'machine', va='center', rotation='vertical')
+
+    handles = []
+    for job,color in zip(pd.unique(df['job']),pd.unique(df['color'])):
+        handles.append(Patch(color=color, label=job))
+
+    plt.legend(handles=handles, title='job')
+
+    ax.set_yticks(df['machine'])
+    ax.bar_label(axx, df['position'], label_type='center')
+
+    plt.grid(axis = 'x')
+    plt.savefig( directory_path + image_title + '.png')
