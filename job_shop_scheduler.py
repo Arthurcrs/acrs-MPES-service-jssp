@@ -17,10 +17,10 @@ def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     return scheduler.get_bqm(stitch_kwargs)
 
 class Task:
-    def __init__(self, job, position, machine, duration):
+    def __init__(self, job, position, machines, duration):
         self.job = job
         self.position = position
-        self.machine = machine
+        self.machines = machines
         self.duration = duration
 
     def __repr__(self):
@@ -40,8 +40,8 @@ class KeyList:
         key = self.key_function(item)
         return key
 
-def get_label(task, time):
-    return f"{task.job}_{task.position},{time}".format(**locals())
+def get_label(task, machine, time):
+    return f"{task.job}_{task.position}_{machine},{time}".format(**locals())
 
 def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     if stitch_kwargs == None:
@@ -93,34 +93,38 @@ class JobShopScheduler:
         """
               A task can start once and only once
         """
-        taskId = 0
         for task in self.tasks:
-            task_times = []
-            for t in range(self.makespan + 1):
-                label = get_label(task, t)
-                if(label not in self.labels):
-                    task_times.append((label, 1.0))
-            self.binary_vars.append(task_times)
-            self.bqm.add_linear_equality_constraint(task_times, constraint_penalty, -1)
-            taskId = taskId + 1
+            linear_terms = []
+            for m in task.machines:
+                for t in range(self.makespan + 1):
+                    label = get_label(task, m, t)
+                    if(label not in self.labels):
+                        linear_terms.append((label, 1.0))
+            self.binary_vars.append(linear_terms)
+            self.bqm.add_linear_equality_constraint(linear_terms, constraint_penalty, -1)
     
     def add_precedence_constraint(self):
         """
               self.modelcsp gets the constraint: Task must follow a particular order.
               Note: assumes self.tasks are sorted by jobs and then by position
         """
-        id = 0
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
                 continue
             # Forming constraints with the relevant times of the next task
             for t in range(self.makespan + 1):
-                current_label = get_label(current_task, t)
+                current_labels = []
+                for m in current_task.machines:
+                    current_labels.append(get_label(current_task, m, t))
                 for tt in range(min(t + current_task.duration, self.makespan + 1)):
-                    next_label = get_label(next_task, tt)
-                    if((current_label not in self.labels) and (next_label not in self.labels)):
-                        self.bqm.add_quadratic(current_label, next_label, constraint_penalty)
-                        id = id + 1
+                    next_labels = []
+                    for m in next_task.machines:
+                        next_labels.append(get_label(next_task, m, tt))
+                    
+                    quadratic_terms = [(u, v) for u in current_labels for v in next_labels]
+                    for current_label,next_label in quadratic_terms:
+                        if((current_label not in self.labels) and (next_label not in self.labels)):
+                            self.bqm.add_quadratic(current_label, next_label, constraint_penalty)
     
     def add_share_machine_constraint(self):
         """
@@ -129,7 +133,6 @@ class JobShopScheduler:
         sorted_tasks = sorted(self.tasks, key=lambda x: x.machine)
         wrapped_tasks = KeyList(sorted_tasks, lambda x: x.machine) # Key wrapper for bisect function
         head = 0
-        id = 0
         while head < len(sorted_tasks):
 
             # Find tasks that share a machine
@@ -154,7 +157,6 @@ class JobShopScheduler:
                             other_label = get_label(other_task, tt)
                             if((current_label not in self.labels) and (other_label not in self.labels)):
                                 self.bqm.add_quadratic(current_label, other_label, constraint_penalty)
-                                id = id + 1
     
     def _remove_absurd_times(self):
         """Sets impossible task times in self.bqm to 0.
@@ -197,8 +199,8 @@ class JobShopScheduler:
 
         # Apply constraints to self.model
         self.add_one_start_constraint()
-        self._remove_absurd_times()
+        # self._remove_absurd_times()
         self.add_precedence_constraint()
-        self.add_share_machine_constraint()
+        # self.add_share_machine_constraint()
 
         return self.bqm

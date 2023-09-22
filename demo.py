@@ -7,9 +7,9 @@ from utils import *
 
 # Problem Definition
 
-jobs = {"job_1": [("machine_1", 2)],
-        "job_2": [("machine_2", 1),("machine_3", 1)],
-        "job_3": [("machine_3", 2)]}
+jobs = {"job_1": [(["1","2"], 2),(["2"], 1)],
+        "job_2": [(["2"], 1),(["3"], 1)],
+        "job_3": [(["3"], 2)]}
 
 # machine_downtimes = {"machine_3" : [0,1,5],
 #                      "machine_1" : [1,2,5]}
@@ -32,43 +32,23 @@ sampleset = sampler.sample(bqm)
 
 solution = sampleset.first
 
-df = solution_to_dataframe(solution.sample,jobs)
-df.to_csv('solution.csv', index=False)
-print("Solution saved into solution.csv")
+try:
+    df = solution_to_dataframe(solution.sample,jobs)
+    df.to_csv('solution.csv', index=False)
+    print("{:<{}}".format("[SUCCESS]", 10) + "Solution saved into solution.csv")
+except:
+    print("{:<{}}".format("[FAIL]", 10) + "Could not save solution into a csv file")
 
-file = open("solution.txt", "w")
-file.write(str(solution))
-file.close()
-print("Solution saved as text in solution.txt")
+try:
+    file = open("solution.txt", "w")
+    file.write(str(solution))
+    file.close()
+    print("{:<{}}".format("[SUCCESS]", 10) + "Solution saved as text in solution.txt")
+except:
+    print("{:<{}}".format("[FAIL]", 10) + "Could not save solution into a txt file")
 
-export_gantt_diagram("image")
-print("Gantt Diagram can be vizualized")
-
-# selected_nodes = [k for k, v in solution.sample.items() if v == 1]
-
-# # Parse node information
-# task_times = {k: [-1]*len(v) for k, v in jobs.items()}
-# tasks_test = []
-# print(task_times)
-# for node in selected_nodes:
-#     if is_auxiliary_variable(node):
-#         continue
-#     job_name, task_time = node.rsplit("_", 1)
-#     task_index, start_time = map(int, task_time.split(","))
-
-#     task_times[job_name][task_index] = start_time
-
-# # Print problem and restructured solution
-# print("Jobs and their machine-specific tasks:")
-
-# for job, task_list in jobs.items():
-#     print("{0:9}: {1}".format(job, task_list))
-
-# print("\nJobs and the start times of each task:")
-# for job, times in task_times.items():
-#     print("{0:9}: {1}".format(job, times))
-#     for time in times:
-#         tasks_test.append([job,time])
-
-# print("\nMachines and their downtimes")
-# print(machine_downtimes)
+try:
+    export_gantt_diagram("image")
+    print("{:<{}}".format("[SUCCESS]", 10) + "Gantt Diagram can be vizualized")
+except:
+    print("{:<{}}".format("[FAIL]", 10) + "Gantt Diagram could not be build")
