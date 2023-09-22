@@ -1,10 +1,7 @@
 from __future__ import print_function
-
 from re import match
 from bisect import bisect_right
-
 from utils import *
-
 from dimod import BinaryQuadraticModel
 
 constraint_penalty = 10
@@ -87,7 +84,6 @@ class JobShopScheduler:
         if self.makespan is None:
             self.makespan = total_time
         self.makespan -= 1
- 
 
     def add_one_start_constraint(self):
         """
@@ -122,7 +118,7 @@ class JobShopScheduler:
                         next_labels.append(get_label(next_task, m, tt))
                     
                     quadratic_terms = [(u, v) for u in current_labels for v in next_labels]
-                    for current_label,next_label in quadratic_terms:
+                    for current_label, next_label in quadratic_terms:
                         if((current_label not in self.labels) and (next_label not in self.labels)):
                             self.bqm.add_quadratic(current_label, next_label, constraint_penalty)
     
@@ -130,13 +126,23 @@ class JobShopScheduler:
         """
             self.modelcsp gets the constraint: At most one task per machine per time
         """
-        sorted_tasks = sorted(self.tasks, key=lambda x: x.machine)
-        wrapped_tasks = KeyList(sorted_tasks, lambda x: x.machine) # Key wrapper for bisect function
+        
+        #TODO: This is a very non optimized way to do this.. Basically it is creating two tasks for each machine that can execute it
+        splitTasks = []
+        for task in self.tasks:
+            for m in task.machines:
+                machine = []
+                machine.append(m)
+                newTask = Task(task.job, task.position, machine, task.duration)
+                splitTasks.append(newTask)
+
+        sorted_tasks = sorted(splitTasks, key=lambda x: x.machines[0])
+        wrapped_tasks = KeyList(sorted_tasks, lambda x: x.machines[0]) # Key wrapper for bisect function
         head = 0
         while head < len(sorted_tasks):
 
             # Find tasks that share a machine
-            tail = bisect_right(wrapped_tasks, sorted_tasks[head].machine)
+            tail = bisect_right(wrapped_tasks, sorted_tasks[head].machines[0])
             same_machine_tasks = sorted_tasks[head:tail]
 
             # Update
@@ -148,13 +154,14 @@ class JobShopScheduler:
 
             # Apply constraint between all tasks for each unit of time
             for task in same_machine_tasks:
+                m = task.machines[0]
                 for other_task in same_machine_tasks:
                     if task.job == other_task.job and task.position == other_task.position:
                         continue
                     for t in range(self.makespan + 1):
-                        current_label = get_label(task, t)
+                        current_label = get_label(task, m, t)
                         for tt in range(t, min(t + task.duration, self.makespan + 1)):
-                            other_label = get_label(other_task, tt)
+                            other_label = get_label(other_task, m, tt)
                             if((current_label not in self.labels) and (other_label not in self.labels)):
                                 self.bqm.add_quadratic(current_label, other_label, constraint_penalty)
     
@@ -171,8 +178,9 @@ class JobShopScheduler:
                 current_job = task.job
 
             for t in range(predecessor_time):
-                label = get_label(task, t)
-                self.bqm.fix_variable(label, 0)
+                for m in task.machines:
+                    label = get_label(task, m, t)
+                    self.bqm.fix_variable(label, 0)
 
             predecessor_time += task.duration
 
@@ -189,18 +197,17 @@ class JobShopScheduler:
 
             successor_time += task.duration
             for t in range(successor_time):
-                label = get_label(task, self.makespan - t)
-                self.bqm.fix_variable(label, 0)
+                for m in task.machines:
+                    label = get_label(task, m, self.makespan - t)
+                    self.bqm.fix_variable(label, 0)
     
     def get_bqm(self, stitch_kwargs=None):
         if stitch_kwargs is None:
             stitch_kwargs = {}
         
-
-        # Apply constraints to self.model
         self.add_one_start_constraint()
-        # self._remove_absurd_times()
+        self._remove_absurd_times()
         self.add_precedence_constraint()
-        # self.add_share_machine_constraint()
+        self.add_share_machine_constraint()
 
         return self.bqm
