@@ -4,7 +4,9 @@ from bisect import bisect_right
 from utils import *
 from dimod import BinaryQuadraticModel
 
-constraint_penalty = 10
+one_start_constraint_penalty = 10
+precedence_constraint_penalty = 10
+share_machine_constraint_penalty = 10
 
 def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     if stitch_kwargs == None:
@@ -13,6 +15,8 @@ def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     scheduler = JobShopScheduler(job_dict, makespan)
     return scheduler.get_bqm(stitch_kwargs)
 
+def get_label(task, machine, time):
+    return f"{task.job}_{task.position}_{machine},{time}".format(**locals())
 class Task:
     def __init__(self, job, position, machines, duration):
         self.job = job
@@ -36,16 +40,6 @@ class KeyList:
         item = self.array[index]
         key = self.key_function(item)
         return key
-
-def get_label(task, machine, time):
-    return f"{task.job}_{task.position}_{machine},{time}".format(**locals())
-
-def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
-    if stitch_kwargs == None:
-        stitch_kwargs = {}
-
-    scheduler = JobShopScheduler(job_dict, makespan)
-    return scheduler.get_bqm(stitch_kwargs)
 
 class JobShopScheduler:
     def __init__(self, job_dict, makespan=None):
@@ -97,30 +91,27 @@ class JobShopScheduler:
                     if(label not in self.labels):
                         linear_terms.append((label, 1.0))
             self.binary_vars.append(linear_terms)
-            self.bqm.add_linear_equality_constraint(linear_terms, constraint_penalty, -1)
-    
+            self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1) #TODO: This is not squaring the subtraction which may lead to errors
+
     def add_precedence_constraint(self):
         """
-              self.modelcsp gets the constraint: Task must follow a particular order.
-              Note: assumes self.tasks are sorted by jobs and then by position
+              The tasks within a job must be executed in order
         """
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
                 continue
-            # Forming constraints with the relevant times of the next task
-            for t in range(self.makespan + 1):
-                current_labels = []
-                for m in current_task.machines:
-                    current_labels.append(get_label(current_task, m, t))
+            for t in range(self.makespan + 1): #TODO: This might be wrong, should it be the duration of the Job instead of the makespan?
                 for tt in range(min(t + current_task.duration, self.makespan + 1)):
+                    current_labels = []
                     next_labels = []
+                    quadratic_terms = []
+                    for m in current_task.machines:
+                        current_labels.append(get_label(current_task, m, t))
                     for m in next_task.machines:
-                        next_labels.append(get_label(next_task, m, tt))
-                    
+                        next_labels.append(get_label(next_task, m, tt))                   
                     quadratic_terms = [(u, v) for u in current_labels for v in next_labels]
                     for current_label, next_label in quadratic_terms:
-                        if((current_label not in self.labels) and (next_label not in self.labels)):
-                            self.bqm.add_quadratic(current_label, next_label, constraint_penalty)
+                        self.bqm.add_quadratic(current_label, next_label, precedence_constraint_penalty)
     
     def add_share_machine_constraint(self):
         """
@@ -163,7 +154,7 @@ class JobShopScheduler:
                         for tt in range(t, min(t + task.duration, self.makespan + 1)):
                             other_label = get_label(other_task, m, tt)
                             if((current_label not in self.labels) and (other_label not in self.labels)):
-                                self.bqm.add_quadratic(current_label, other_label, constraint_penalty)
+                                self.bqm.add_quadratic(current_label, other_label, share_machine_constraint_penalty)
     
     def _remove_absurd_times(self):
         """Sets impossible task times in self.bqm to 0.

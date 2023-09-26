@@ -7,9 +7,9 @@ from utils import *
 
 # Problem Definition
 
-jobs = {"job_1": [(["1","2"], 2),(["2"], 1)],
-        "job_2": [(["2"], 1),(["3"], 1)],
-        "job_3": [(["3"], 2)]}
+jobs = {"job_1": [(["1","2"], 1),(["3"], 1)],
+        "job_2": [(["2"], 1),(["3","1"], 1)],
+        "job_3": [(["1"], 4)]}
 
 # machine_downtimes = {"machine_3" : [0,1,5],
 #                      "machine_1" : [1,2,5]}
@@ -26,9 +26,7 @@ sampleset = sampler.sample(bqm)
 
 # # sampler = EmbeddingComposite(DWaveSampler())
 # # sampleset = sampler.sample(bqm,
-# #                            chain_strength=2,
-# #                            num_reads=1000,
-# #                            label='Example - Job Shop Scheduling')
+# #                            num_reads=1000)
 
 solution = sampleset.first
 
