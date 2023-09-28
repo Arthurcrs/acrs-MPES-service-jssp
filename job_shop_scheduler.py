@@ -49,6 +49,7 @@ class JobShopScheduler:
         self.labels = []
         self.makespan = makespan
         self.bqm = BinaryQuadraticModel.empty('BINARY')
+        self.machines = []
 
         # Populates self.tasks and self.makespan
         self._process_data(job_dict)
@@ -63,10 +64,14 @@ class JobShopScheduler:
             last_task_indices.append(last_task_indices[-1] + len(job_tasks))
             job_time = 0
 
-            for i, (machine, time_span) in enumerate(job_tasks):
-                tasks.append(Task(job_name, i, machine, time_span))
+            for i, (machines, time_span) in enumerate(job_tasks):
+                tasks.append(Task(job_name, i, machines, time_span))
                 total_time += time_span
                 job_time += time_span
+
+                for machine in machines:
+                    if machine not in self.machines:
+                        self.machines.append(machine)
 
             if job_time > max_job_time:
                 max_job_time = job_time
@@ -115,47 +120,27 @@ class JobShopScheduler:
     
     def add_share_machine_constraint(self):
         """
-            self.modelcsp gets the constraint: At most one task per machine per time
-        """
-        
-        #TODO: This is a very non optimized way to do this.. Basically it is creating two tasks for each machine that can execute it
-        splitTasks = []
-        for task in self.tasks:
-            for m in task.machines:
-                machine = []
-                machine.append(m)
-                newTask = Task(task.job, task.position, machine, task.duration)
-                splitTasks.append(newTask)
+              There can be only one job running on each machine at any given point in time
+        """  
+        tasks_with_machine = {}
+        for m in self.machines:
+            for task in self.tasks:
+                if m in task.machines:
+                    if m not in tasks_with_machine:
+                        tasks_with_machine[m] = []
+                    tasks_with_machine[m].append(task)
 
-        sorted_tasks = sorted(splitTasks, key=lambda x: x.machines[0])
-        wrapped_tasks = KeyList(sorted_tasks, lambda x: x.machines[0]) # Key wrapper for bisect function
-        head = 0
-        while head < len(sorted_tasks):
+        for m in self.machines:
+            task_pair = [(task_1, task_2) for task_1 in tasks_with_machine[m] for task_2 in tasks_with_machine[m]]
+            for task_1, task_2 in task_pair:
+                if task_1.job == task_2.job and task_1.position == task_2.position:
+                    continue
+                for t_1 in range(self.makespan + 1):
+                    for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
+                        label_1 = get_label(task_1, m, t_1)
+                        label_2 = get_label(task_2, m, t_2)
+                        self.bqm.add_quadratic(label_1,label_2,share_machine_constraint_penalty)
 
-            # Find tasks that share a machine
-            tail = bisect_right(wrapped_tasks, sorted_tasks[head].machines[0])
-            same_machine_tasks = sorted_tasks[head:tail]
-
-            # Update
-            head = tail
-
-            # No need to build coupling for a single task
-            if len(same_machine_tasks) < 2:
-                continue
-
-            # Apply constraint between all tasks for each unit of time
-            for task in same_machine_tasks:
-                m = task.machines[0]
-                for other_task in same_machine_tasks:
-                    if task.job == other_task.job and task.position == other_task.position:
-                        continue
-                    for t in range(self.makespan + 1):
-                        current_label = get_label(task, m, t)
-                        for tt in range(t, min(t + task.duration, self.makespan + 1)):
-                            other_label = get_label(other_task, m, tt)
-                            if((current_label not in self.labels) and (other_label not in self.labels)):
-                                self.bqm.add_quadratic(current_label, other_label, share_machine_constraint_penalty)
-    
     def _remove_absurd_times(self):
         """Sets impossible task times in self.bqm to 0.
         """
