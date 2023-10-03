@@ -38,26 +38,18 @@ def solution_to_dataframe(solution, jobs):
     durations = []
     start_times = []
 
-    for key, value in solution.items():
-        if key.startswith('job') and value == 1:
-            # Splitting the key to extract job, task (position), and start time
-            job_task_time = key.split('_')
-            job_name = '_'.join(job_task_time[:2])
-            task, start_time = job_task_time[-1].split(',')
-
-            # Convert task and start_time to integers
-            task = int(task)
-            start_time = int(start_time)
-
+    for label, value in solution.items():
+        if value == 1:
+            parsed_label = parse_label(label)
             # Retrieve corresponding machine and duration from the problem definition
-            machine, duration = jobs[job_name][task]
+            duration = jobs[f"job_{parsed_label['job']}"][parsed_label['position']][1]
 
             # Append information to the lists
-            job_names.append(get_numeric_part(job_name))
-            positions.append(task)
-            machines.append(get_numeric_part(machine))
+            job_names.append(parsed_label['job'])
+            positions.append(parsed_label['position'])
+            machines.append(parsed_label['machine'])
             durations.append(duration)
-            start_times.append(start_time)
+            start_times.append(parsed_label['start_time'])
 
     # Create a DataFrame from the extracted information
     df = pd.DataFrame({
@@ -71,6 +63,17 @@ def solution_to_dataframe(solution, jobs):
     df['end_time'] = df['start_time'] + df['duration']
 
     return df
+
+def parse_label(label):
+    job_position, machine, start_time = label.split(',')
+    job  = job_position.split('_')[1]
+    position = job_position.split('_')[2]
+    return {
+        'job': int(job),
+        'position': int(position),
+        'machine': int(machine),
+        'start_time': int(start_time)
+    }
 
 def get_numeric_part(s):
     result = re.findall(r'\d+', s)

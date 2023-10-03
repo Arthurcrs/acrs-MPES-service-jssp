@@ -4,9 +4,9 @@ from bisect import bisect_right
 from utils import *
 from dimod import BinaryQuadraticModel
 
-one_start_constraint_penalty = 10
-precedence_constraint_penalty = 10
-share_machine_constraint_penalty = 10
+one_start_constraint_penalty = 1
+precedence_constraint_penalty = 1
+share_machine_constraint_penalty = 1
 
 def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     if stitch_kwargs == None:
@@ -16,7 +16,8 @@ def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     return scheduler.get_bqm(stitch_kwargs)
 
 def get_label(task, machine, time):
-    return f"{task.job}_{task.position}_{machine},{time}".format(**locals())
+    return f"{task.job}_{task.position},{machine},{time}".format(**locals())
+
 class Task:
     def __init__(self, job, position, machines, duration):
         self.job = job
@@ -96,7 +97,7 @@ class JobShopScheduler:
                     if(label not in self.labels):
                         linear_terms.append((label, 1.0))
             self.binary_vars.append(linear_terms)
-            self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1) #TODO: This is not squaring the subtraction which may lead to errors
+            self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1)
 
     def add_precedence_constraint(self):
         """
@@ -105,7 +106,7 @@ class JobShopScheduler:
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
                 continue
-            for t in range(self.makespan + 1): #TODO: This might be wrong, should it be the duration of the Job instead of the makespan?
+            for t in range(self.makespan + 1):
                 for tt in range(min(t + current_task.duration, self.makespan + 1)):
                     current_labels = []
                     next_labels = []
@@ -133,13 +134,12 @@ class JobShopScheduler:
         for m in self.machines:
             task_pair = [(task_1, task_2) for task_1 in tasks_with_machine[m] for task_2 in tasks_with_machine[m]]
             for task_1, task_2 in task_pair:
-                if task_1.job == task_2.job and task_1.position == task_2.position:
-                    continue
-                for t_1 in range(self.makespan + 1):
-                    for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
-                        label_1 = get_label(task_1, m, t_1)
-                        label_2 = get_label(task_2, m, t_2)
-                        self.bqm.add_quadratic(label_1,label_2,share_machine_constraint_penalty)
+                if task_1.job != task_2.job and task_1.position != task_2.position:
+                    for t_1 in range(self.makespan + 1):
+                        for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
+                            label_1 = get_label(task_1, m, t_1)
+                            label_2 = get_label(task_2, m, t_2)
+                            self.bqm.add_quadratic(label_1,label_2,share_machine_constraint_penalty)                     
 
     def _remove_absurd_times(self):
         """Sets impossible task times in self.bqm to 0.
