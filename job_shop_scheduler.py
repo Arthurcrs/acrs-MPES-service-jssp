@@ -46,8 +46,6 @@ class JobShopScheduler:
     def __init__(self, job_dict, makespan=None):
         self.tasks = []
         self.last_task_indices = []
-        self.binary_vars = []
-        self.labels = []
         self.makespan = makespan
         self.bqm = BinaryQuadraticModel.empty('BINARY')
         self.machines = []
@@ -94,9 +92,7 @@ class JobShopScheduler:
             for m in task.machines:
                 for t in range(self.makespan + 1):
                     label = get_label(task, m, t)
-                    if(label not in self.labels):
-                        linear_terms.append((label, 1.0))
-            self.binary_vars.append(linear_terms)
+                    linear_terms.append((label, 1.0))
             self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1)
 
     def add_precedence_constraint(self):

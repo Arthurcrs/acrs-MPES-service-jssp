@@ -84,9 +84,8 @@ def getColors(n):
     colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
     return colors
 
-def export_gantt_diagram(image_title):
-    directory_path = "Gantt-Diagrams/"
-    solution_csv_file_path = 'solution.csv'
+def export_gantt_diagram(image_title, solution_csv_file_path):
+    directory_path = "Results/"
 
     df = pd.read_csv(solution_csv_file_path)
     unique_jobs = df['job'].unique()
