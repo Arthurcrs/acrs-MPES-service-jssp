@@ -11,7 +11,7 @@ from utils import *
 #         "job_2": [(["2"], 1),(["3","1"], 1)],
 #         "job_3": [(["1"], 4)]}
 
-jobs = {"job_1": [(["1","3"], 1),(["3","2"], 1)],
+jobs = {"job_1": [(["1","3"], 1),(["3","2"], 2)],
         "job_2": [(["3"], 3)]}
 
 # machine_downtimes = {"machine_3" : [0,1,5],
@@ -19,7 +19,7 @@ jobs = {"job_1": [(["1","3"], 1),(["3","2"], 1)],
 
 # Construct a BQM for the jobs
 
-max_time = 5
+max_time = 6
 bqm = get_jss_bqm(jobs, max_time)
 # print(bqm)
 

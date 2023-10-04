@@ -132,9 +132,9 @@ class JobShopScheduler:
                     tasks_with_machine[m].append(task)
 
         for m in self.machines:
-            task_pair = [(task_1, task_2) for task_1 in tasks_with_machine[m] for task_2 in tasks_with_machine[m]]
-            for task_1, task_2 in task_pair:
-                if task_1.job != task_2.job and task_1.position != task_2.position:
+            task_pairs = [(task_1, task_2) for task_1 in tasks_with_machine[m] for task_2 in tasks_with_machine[m]]
+            for task_1, task_2 in task_pairs:
+                if task_1.job != task_2.job or task_1.position != task_2.position:
                     for t_1 in range(self.makespan + 1):
                         for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
                             label_1 = get_label(task_1, m, t_1)
