@@ -14,20 +14,19 @@ from utils import *
 jobs = {"job_1": [(["1","3"], 1),(["3","2"], 1)],
         "job_2": [(["3"], 3)]}
 
-# machine_downtimes = {"machine_3" : [0,1,5],
-#                      "machine_1" : [1,2,5]}
-
-# Construct a BQM for the jobs
-
 max_time = 5
-bqm = get_jss_bqm(jobs, max_time)
 
+# Solve Problem
+
+bqm = get_jss_bqm(jobs, max_time)
 sampler = ExactSolver()
 sampleset = sampler.sample(bqm)
 
 # # sampler = EmbeddingComposite(DWaveSampler())
 # # sampleset = sampler.sample(bqm,
 # #                            num_reads=1000)
+
+# Output Results
 
 solution = sampleset.first
 
