@@ -7,24 +7,28 @@ from utils import *
 
 # Problem Definition
 
-jobs = {"job_1": [(["1","2"], 1),(["3"], 1)],
-        "job_2": [(["2"], 1),(["3","1"], 1)],
+jobs = {"job_1": [(["1","2"], 1),(["3"], 3)],
+        "job_2": [(["2"], 2),(["3","1"], 1)],
         "job_3": [(["1"], 4)]}
 
 # jobs = {"job_1": [(["1","3"], 2),(["3","2"], 1)],
 #         "job_2": [(["3"], 3)]}
 
 max_time = 5
+bqm = get_jss_bqm(jobs, max_time)
 
 # Solve Problem
 
-bqm = get_jss_bqm(jobs, max_time)
-sampler = ExactSolver()
-sampleset = sampler.sample(bqm)
+solver = "ExactSolver"
+# solver = "EmbeddingComposite"
 
-# # sampler = EmbeddingComposite(DWaveSampler())
-# # sampleset = sampler.sample(bqm,
-# #                            num_reads=1000)
+if solver == "ExactSolver":
+    sampler = ExactSolver()
+    sampleset = sampler.sample(bqm)
+
+elif solver == "EmbeddingComposite":
+    sampler = EmbeddingComposite(DWaveSampler())
+    sampleset = sampler.sample(bqm, num_reads=1000)
 
 solution = sampleset.first
 
