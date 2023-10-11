@@ -7,12 +7,12 @@ from utils import *
 
 # Problem Definition
 
-# jobs = {"job_1": [(["1","2"], 1),(["3"], 1)],
-#         "job_2": [(["2"], 1),(["3","1"], 1)],
-#         "job_3": [(["1"], 4)]}
+jobs = {"job_1": [(["1","2"], 1),(["3"], 1)],
+        "job_2": [(["2"], 1),(["3","1"], 1)],
+        "job_3": [(["1"], 4)]}
 
-jobs = {"job_1": [(["1","3"], 1),(["3","2"], 1)],
-        "job_2": [(["3"], 3)]}
+# jobs = {"job_1": [(["1","3"], 2),(["3","2"], 1)],
+#         "job_2": [(["3"], 3)]}
 
 max_time = 5
 
@@ -26,13 +26,19 @@ sampleset = sampler.sample(bqm)
 # # sampleset = sampler.sample(bqm,
 # #                            num_reads=1000)
 
-# Output Results
-
 solution = sampleset.first
+
+# Save Inputs
+
+file = open("Results/input.txt", "w")
+file.write(str(jobs))
+file.close()
 
 file = open("Results/bqm.txt", "w")
 file.write(str(bqm))
 file.close()
+
+# Save Outputs
 
 try:
     df = solution_to_dataframe(solution.sample,jobs)

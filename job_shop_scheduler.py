@@ -178,8 +178,9 @@ class JobShopScheduler:
             stitch_kwargs = {}
         
         self.add_one_start_constraint()
-        self._remove_absurd_times()
-        self.add_precedence_constraint()
         self.add_share_machine_constraint()
+        self.add_precedence_constraint()
+        
+        self._remove_absurd_times()
 
         return self.bqm
