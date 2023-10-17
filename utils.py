@@ -1,5 +1,10 @@
 import pandas as pd
 import re
+import matplotlib.colors as mcolors
+import numpy as np
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 def merge_intervals(intervals):
     if not intervals:
@@ -27,34 +32,24 @@ def add_label_to_remove(my_list, string_to_add):
     return my_list
 
 def solution_to_dataframe(solution, jobs):
-    # Initialize lists to store job, position (task), machine, duration, and start_time information
     job_names = []
     positions = []
     machines = []
     durations = []
     start_times = []
 
-    # Iterate through the solution and extract relevant information
-    for key, value in solution.items():
-        if key.startswith('job') and value == 1:
-            # Splitting the key to extract job, task (position), and start time
-            job_task_time = key.split('_')
-            job_name = '_'.join(job_task_time[:2])
-            task, start_time = job_task_time[-1].split(',')
-
-            # Convert task and start_time to integers
-            task = int(task)
-            start_time = int(start_time)
-
+    for label, value in solution.items():
+        if value == 1:
+            parsed_label = parse_label(label)
             # Retrieve corresponding machine and duration from the problem definition
-            machine, duration = jobs[job_name][task]
+            duration = jobs[f"job_{parsed_label['job']}"][parsed_label['position']][1]
 
             # Append information to the lists
-            job_names.append(get_numeric_part(job_name))
-            positions.append(task)
-            machines.append(get_numeric_part(machine))
+            job_names.append(parsed_label['job'])
+            positions.append(parsed_label['position'])
+            machines.append(parsed_label['machine'])
             durations.append(duration)
-            start_times.append(start_time)
+            start_times.append(parsed_label['start_time'])
 
     # Create a DataFrame from the extracted information
     df = pd.DataFrame({
@@ -69,6 +64,51 @@ def solution_to_dataframe(solution, jobs):
 
     return df
 
+def parse_label(label):
+    job_position, machine, start_time = label.split(',')
+    job  = job_position.split('_')[1]
+    position = job_position.split('_')[2]
+    return {
+        'job': int(job),
+        'position': int(position),
+        'machine': int(machine),
+        'start_time': int(start_time)
+    }
+
 def get_numeric_part(s):
     result = re.findall(r'\d+', s)
     return int(''.join(result)) if result else None
+
+def getColors(n):
+    colormap = cm.viridis
+    colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
+    return colors
+
+def export_gantt_diagram(image_title, solution_csv_file_path):
+    directory_path = "Results/"
+
+    df = pd.read_csv(solution_csv_file_path)
+    unique_jobs = df['job'].unique()
+    conditions = [(df['job'] == job) for job in unique_jobs]
+    values = getColors(len(unique_jobs))
+    df['color'] = np.select(conditions, values)
+
+    fig, ax = plt.subplots(figsize=(16,6))
+    axx = ax.barh(df['machine'], df['duration'], align='center', left=df['start_time'], color=df['color'], label=df['position'], linewidth=3, alpha=.5)
+
+    ax.set_xlim(0, df['end_time'].max())
+
+    fig.text(0.5, 0.04, 'Time Unit', ha='center')
+    fig.text(0.1, 0.5, 'machine', va='center', rotation='vertical')
+
+    handles = []
+    for job,color in zip(pd.unique(df['job']),pd.unique(df['color'])):
+        handles.append(Patch(color=color, label=job))
+
+    plt.legend(handles=handles, title='job')
+
+    ax.set_yticks(df['machine'])
+    ax.bar_label(axx, df['position'], label_type='center')
+
+    plt.grid(axis = 'x')
+    plt.savefig( directory_path + image_title + '.png')

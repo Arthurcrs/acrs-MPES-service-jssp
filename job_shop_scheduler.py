@@ -1,51 +1,38 @@
 from __future__ import print_function
-
 from re import match
 from bisect import bisect_right
-
-import dwavebinarycsp
 from utils import *
+from dimod import BinaryQuadraticModel
 
-def get_jss_bqm(job_dict, machine_downtimes, max_time=None, stitch_kwargs=None):
+one_start_constraint_penalty = 1
+precedence_constraint_penalty = 1
+share_machine_constraint_penalty = 1
+
+def get_jss_bqm(job_dict, makespan=None, stitch_kwargs=None):
     if stitch_kwargs == None:
         stitch_kwargs = {}
 
-    scheduler = JobShopScheduler(job_dict, machine_downtimes, max_time)
+    scheduler = JobShopScheduler(job_dict, makespan)
     return scheduler.get_bqm(stitch_kwargs)
 
-
-def sum_to_one(*args):
-    return sum(args) == 1
-
-
-def get_label(task, time):
-    """Creates a standardized name for variables in the constraint satisfaction problem,
-    JobShopScheduler.csp.
-    """
-    return "{task.job}_{task.position},{time}".format(**locals())
-
+def get_label(task, machine, time):
+    return f"{task.job}_{task.position},{machine},{time}".format(**locals())
 
 class Task:
-    def __init__(self, job, position, machine, duration):
+    def __init__(self, job, position, machines, duration):
         self.job = job
         self.position = position
-        self.machine = machine
+        self.machines = machines
         self.duration = duration
 
     def __repr__(self):
         return ("{{job: {job}, position: {position}, machine: {machine}, duration:"
                 " {duration}}}").format(**vars(self))
 
-
 class KeyList:
-    """A wrapper to an array. Used for passing the key of a custom object to the bisect function.
-
-    Note: bisect function does not let you choose an arbitrary key, hence this class was created.
-    """
-
     def __init__(self, array, key_function):
-        self.array = array  # An iterable
-        self.key_function = key_function  # Function for grabbing the key of a given item
+        self.array = array
+        self.key_function = key_function
 
     def __len__(self):
         return len(self.array)
@@ -55,114 +42,103 @@ class KeyList:
         key = self.key_function(item)
         return key
 
-
 class JobShopScheduler:
-    def __init__(self, job_dict,machine_downtimes=None, max_time=None):
-
+    def __init__(self, job_dict, makespan=None):
         self.tasks = []
         self.last_task_indices = []
-        self.max_time = max_time    # will get decremented by 1 for zero-indexing; see _process_data
-        self.unique_labels = []
-        if machine_downtimes == None:
-            machine_downtimes = {}
-        else:
-            self.machine_downtimes = machine_downtimes
-        self.csp = dwavebinarycsp.ConstraintSatisfactionProblem(dwavebinarycsp.BINARY)
+        self.makespan = makespan
+        self.bqm = BinaryQuadraticModel.empty('BINARY')
+        self.machines = []
 
-        # Populates self.tasks and self.max_time
+        # Populates self.tasks and self.makespan
         self._process_data(job_dict)
-
+    
     def _process_data(self, jobs):
-        
         tasks = []
-        last_task_indices = [-1]    # -1 for zero-indexing
-        total_time = 0  # total time of all jobs
+        last_task_indices = [-1]
+        total_time = 0
         max_job_time = 0
 
         for job_name, job_tasks in jobs.items():
             last_task_indices.append(last_task_indices[-1] + len(job_tasks))
             job_time = 0
 
-            for i, (machine, time_span) in enumerate(job_tasks):
-                tasks.append(Task(job_name, i, machine, time_span))
+            for i, (machines, time_span) in enumerate(job_tasks):
+                tasks.append(Task(job_name, i, machines, time_span))
                 total_time += time_span
                 job_time += time_span
 
-            # Store the time of the longest running job
+                for machine in machines:
+                    if machine not in self.machines:
+                        self.machines.append(machine)
+
             if job_time > max_job_time:
                 max_job_time = job_time
 
-        # Update values
-        # Note: max_job_time is a lowerbound to the time it takes for the optimal schedule. This is
-        #   because the longest job must be a part of this optimal schedule.
         self.tasks = tasks
         self.last_task_indices = last_task_indices[1:]
-        self.max_job_time = max_job_time - 1    # -1 to account for zero-indexing
+        self.max_job_time = max_job_time - 1
 
-        if self.max_time is None:
-            self.max_time = total_time
-        self.max_time -= 1    # -1 to account for zero-indexing
+        if self.makespan is None:
+            self.makespan = total_time
+        self.makespan -= 1
 
-    def _add_one_start_constraint(self):
-        """self.csp gets the constraint: A task can start once and only once
+    def add_one_start_constraint(self):
+        """
+              A task can start once and only once
         """
         for task in self.tasks:
-            task_times = {get_label(task, t) for t in range(self.max_time + 1)}
-            self.csp.add_constraint(sum_to_one, task_times)
+            linear_terms = []
+            for m in task.machines:
+                for t in range(self.makespan + 1):
+                    label = get_label(task, m, t)
+                    linear_terms.append((label, 1.0))
+            self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1)
 
-    def _add_precedence_constraint(self):
-        """self.csp gets the constraint: Task must follow a particular order.
-         Note: assumes self.tasks are sorted by jobs and then by position
+    def add_precedence_constraint(self):
         """
-        valid_edges = {(0, 0), (1, 0), (0, 1)}
+              The tasks within a job must be executed in order
+        """
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
                 continue
-
-            # Forming constraints with the relevant times of the next task
-            for t in range(self.max_time + 1):
-                current_label = get_label(current_task, t)
-
-                for tt in range(min(t + current_task.duration, self.max_time + 1)):
-                    next_label = get_label(next_task, tt)
-                    self.csp.add_constraint(valid_edges, {current_label, next_label})
-
-    def _add_share_machine_constraint(self):
-        """self.csp gets the constraint: At most one task per machine per time
+            for t in range(self.makespan + 1):
+                for tt in range(min(t + current_task.duration, self.makespan + 1)):
+                    current_labels = []
+                    next_labels = []
+                    quadratic_terms = []
+                    for m in current_task.machines:
+                        current_labels.append(get_label(current_task, m, t))
+                    for m in next_task.machines:
+                        next_labels.append(get_label(next_task, m, tt))                   
+                    quadratic_terms = [(u, v) for u in current_labels for v in next_labels]
+                    for current_label, next_label in quadratic_terms:
+                        self.bqm.add_quadratic(current_label, next_label, precedence_constraint_penalty)
+    
+    def add_share_machine_constraint(self):
         """
-        sorted_tasks = sorted(self.tasks, key=lambda x: x.machine)
-        wrapped_tasks = KeyList(sorted_tasks, lambda x: x.machine) # Key wrapper for bisect function
+              There can be only one job running on each machine at any given point in time
+        """  
+        tasks_with_machine = {}
+        for m in self.machines:
+            for task in self.tasks:
+                if m in task.machines:
+                    if m not in tasks_with_machine:
+                        tasks_with_machine[m] = []
+                    tasks_with_machine[m].append(task)
 
-        head = 0
-        valid_values = {(0, 0), (1, 0), (0, 1)}
-        while head < len(sorted_tasks):
+        for m in self.machines:
+            task_pairs = [(task_1, task_2) for task_1 in tasks_with_machine[m] for task_2 in tasks_with_machine[m]]
+            for task_1, task_2 in task_pairs:
+                if task_1.job != task_2.job or task_1.position != task_2.position:
+                    for t_1 in range(self.makespan + 1):
+                        for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
+                            label_1 = get_label(task_1, m, t_1)
+                            label_2 = get_label(task_2, m, t_2)
+                            self.bqm.add_quadratic(label_1,label_2,share_machine_constraint_penalty)                     
 
-            # Find tasks that share a machine
-            tail = bisect_right(wrapped_tasks, sorted_tasks[head].machine)
-            same_machine_tasks = sorted_tasks[head:tail]
-
-            # Update
-            head = tail
-
-            # No need to build coupling for a single task
-            if len(same_machine_tasks) < 2:
-                continue
-
-            # Apply constraint between all tasks for each unit of time
-            for task in same_machine_tasks:
-                for other_task in same_machine_tasks:
-                    if task.job == other_task.job and task.position == other_task.position:
-                        continue
-
-                    for t in range(self.max_time + 1):
-                        current_label = get_label(task, t)
-
-                        for tt in range(t, min(t + task.duration, self.max_time + 1)):
-                            self.csp.add_constraint(valid_values, {current_label,
-                                                                   get_label(other_task, tt)})
-
-    def _get_absurd_times_labels(self):
-        """Sets impossible task times in self.csp to 0.
+    def _remove_absurd_times(self):
+        """Sets impossible task times in self.bqm to 0.
         """
         # Times that are too early for task
         predecessor_time = 0
@@ -174,8 +150,9 @@ class JobShopScheduler:
                 current_job = task.job
 
             for t in range(predecessor_time):
-                label = get_label(task, t)
-                add_label_to_remove(self.unique_labels,label)
+                for m in task.machines:
+                    label = get_label(task, m, t)
+                    self.bqm.fix_variable(label, 0)
 
             predecessor_time += task.duration
 
@@ -192,126 +169,18 @@ class JobShopScheduler:
 
             successor_time += task.duration
             for t in range(successor_time):
-                label = get_label(task, self.max_time - t)
-                add_label_to_remove(self.unique_labels,label)
-
-    def _get_machine_downtimes_labels(self):
-        for machine in self.machine_downtimes.keys():
-            tasks_with_machine = [task for task in self.tasks if task.machine == machine]
-            for task in tasks_with_machine:
-                intervals = [] # Downtime intervals
-                for begin_downtime in self.machine_downtimes[task.machine]:
-                    start = begin_downtime - task.duration + 1
-                    stop = begin_downtime + 1
-                    if start < 0:
-                        start = 0
-                    interval = [start,stop]
-                    intervals.append(interval)
-                equivalent_intervals = merge_intervals(intervals) # Intervals without overlap ex: [0,3] with [2,4] becomes [0,4]
-                for e_interval in equivalent_intervals:
-                    for time in range(e_interval[0], e_interval[1]):
-                        label = get_label(task, time)
-                        add_label_to_remove(self.unique_labels,label)
+                for m in task.machines:
+                    label = get_label(task, m, self.makespan - t)
+                    self.bqm.fix_variable(label, 0)
     
-    def _remove_impossible_times(self):
-
-        self._get_absurd_times_labels()
-        self._get_machine_downtimes_labels()
-
-        for label in self.unique_labels:
-            self.csp.fix_variable(label,0)
-
-    def _edit_bqm_for_shortest_schedule(self, bqm):
-        # Edit BQM to encourage the shortest schedule
-        # Overview of this added penalty:
-        # - Want any-optimal-schedule-penalty < any-non-optimal-schedule-penalty
-        # - Suppose there are N tasks that need to be scheduled and N > 0
-        # - Suppose the the optimal end time for this schedule is t_N
-        # - Then the worst optimal schedule would be if ALL the tasks ended at time t_N. (Since
-        #   the optimal schedule is only dependent on when the LAST task is run, it is irrelevant
-        #   when the first N-1 tasks end.) Note that by "worst" optimal schedule, I am merely
-        #   referring to the most heavily penalized optimal schedule.
-        #
-        # Show math satisfies any-optimal-schedule-penalty < any-non-optimal-schedule-penalty:
-        # - Penalty scheme. Each task is given the penalty: base^(task-end-time). The penalty
-        #   of the entire schedule is the sum of penalties of these chosen tasks.
-        # - Chose the base of my geometric series to be N+1. This simplifies the math and it will
-        #   become apparent why it's handy later on.
-        #
-        # - Comparing the SUM of penalties between any optimal schedule (on left) with that of the
-        #   WORST optimal schedule (on right). As shown below, in this penalty scheme, any optimal
-        #   schedule penalty <= the worst optimal schedule.
-        #     sum_i (N+1)^t_i <= N * (N+1)^t_N, where t_i the time when the task i ends  [eq 1]
-        #
-        # - Now let's show that all optimal schedule penalties < any non-optimal schedule penalty.
-        #   We can prove this by applying eq 1 and simply proving that the worst optimal schedule
-        #   penalty (below, on left) is always less than any non-optimal schedule penalty.
-        #     N * (N+1)^t_N < (N+1)^(t_N + 1)
-        #                               Note: t_N + 1 is the smallest end time for a non-optimal
-        #                                     schedule. Hence, if t_N' is the end time of the last
-        #                                     task of a non-optimal schedule, t_N + 1 <= t_N'
-        #                   <= (N+1)^t_N'
-        #                   < sum^(N-1) (N+1)^t_i' + (N+1)^t_N'
-        #                   = sum^N (N+1)^t_i'
-        #                               Note: sum^N (N+1)^t' is the sum of penalties for a
-        #                                     non-optimal schedule
-        #
-        # - Therefore, with this penalty scheme, all optimal solution penalties < any non-optimal
-        #   solution penalties
-        base = len(self.last_task_indices) + 1     # Base for exponent
-        # Get our pruned (remove_absurd_times) variable list so we don't undo pruning
-        pruned_variables = list(bqm.variables)
-        for i in self.last_task_indices:
-            task = self.tasks[i]
-
-            for t in range(self.max_time + 1):
-                end_time = t + task.duration - 1    # -1 to get last unit of time the task occupies
-
-                # Check task's end time
-                # Note: first condition is to prevent adding in absurd times. Second condition is
-                #   to prevent penalizing job end-times shorter than the shortest possible schedule
-                #   end-time (i.e. the time it takes to run the longest job).
-                if end_time > self.max_time or end_time <= self.max_job_time:
-                    continue
-
-                # Add bias to variable
-                # Note: the bias shown here is a scaled version of the proof shown above. Rather
-                #   than simply doing base**end_time, I have scaled the all biases with
-                #   2 / base**self.max_time. This way, the largest possible bias
-                #   (when end_time==(self.max_time-1)) is 2.
-                bias = 2 * base**(end_time - self.max_time)
-                label = get_label(task, t)
-                if label in pruned_variables:
-                    bqm.add_variable(label, bias)
-
     def get_bqm(self, stitch_kwargs=None):
-        """Returns a BQM to the Job Shop Scheduling problem.
-
-        Args:
-            stitch_kwargs: A dict. Kwargs to be passed to dwavebinarycsp.stitch.
-        """
         if stitch_kwargs is None:
             stitch_kwargs = {}
+        
+        self.add_one_start_constraint()
+        self.add_share_machine_constraint()
+        self.add_precedence_constraint()
+        
+        self._remove_absurd_times()
 
-        # Apply constraints to self.csp
-        self._add_one_start_constraint()
-        self._add_precedence_constraint()
-        self._add_share_machine_constraint()
-        self._remove_impossible_times()
-
-        # Get BQM
-        bqm = dwavebinarycsp.stitch(self.csp, max_graph_size = 20)
-
-        # Edit BQM to encourage an optimal schedule
-        self._edit_bqm_for_shortest_schedule(bqm)
-
-        return bqm
-
-
-def is_auxiliary_variable(v):
-    """Check whether named variable is an auxiliary variable.
-
-    Auxiliary variables may be added as part of converting the
-    constraint satisfaction problem to a BQM.
-    """
-    return match("aux\d+$", v)
+        return self.bqm
