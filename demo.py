@@ -14,8 +14,10 @@ jobs = {"job_1": [(["1","2"], 1),(["3"], 3)],
 # jobs = {"job_1": [(["1","3"], 2),(["3","2"], 1)],
 #         "job_2": [(["3"], 3)]}
 
+machine_downtimes = {"1":[1]}
+
 max_time = 5
-bqm = get_jss_bqm(jobs, max_time)
+bqm = get_jss_bqm(jobs, machine_downtimes, max_time)
 
 # Solve Problem
 
