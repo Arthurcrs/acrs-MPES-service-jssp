@@ -1,6 +1,3 @@
-from __future__ import print_function
-from re import match
-from bisect import bisect_right
 from utils import *
 from dimod import BinaryQuadraticModel
 
@@ -26,23 +23,6 @@ class Task:
         self.machines = machines
         self.equipments = equipments
         self.duration = duration
-
-    def __repr__(self):
-        return ("{{job: {job}, position: {position}, machine: {machine}, duration:"
-                " {duration}}}").format(**vars(self))
-
-class KeyList:
-    def __init__(self, array, key_function):
-        self.array = array
-        self.key_function = key_function
-
-    def __len__(self):
-        return len(self.array)
-
-    def __getitem__(self, index):
-        item = self.array[index]
-        key = self.key_function(item)
-        return key
 
 class JobShopScheduler:
     def __init__(self, job_dict, machine_downtimes, makespan=None):
@@ -173,6 +153,9 @@ class JobShopScheduler:
                                         self.bqm.add_quadratic(label_1,label_2,share_equipment_constraint_penalty)
 
     def _remove_machine_downtime_labels(self):
+        """
+            Sets labels with impossible task times due to machine downtimes to 0.
+        """
         for m in self.machine_downtimes.keys():
             for task in self.tasks_with_machine[m]:
                 for begin_downtime in self.machine_downtimes[m]:
@@ -187,13 +170,13 @@ class JobShopScheduler:
                             self.removed_labels.append(label)
         
     def _remove_absurd_times_labels(self):
-        """Sets impossible task times in self.bqm to 0.
+        """
+            Sets labels with task times that are too early or too late for a task to be executed to 0.
         """
         # Times that are too early for task
         predecessor_time = 0
         current_job = self.tasks[0].job
         for task in self.tasks:
-            # Check if task is in current_job
             if task.job != current_job:
                 predecessor_time = 0
                 current_job = task.job
@@ -208,12 +191,9 @@ class JobShopScheduler:
             predecessor_time += task.duration
 
         # Times that are too late for task
-        # Note: we are going through the task list backwards in order to compute
-        # the successor time
-        successor_time = -1    # start with -1 so that we get (total task time - 1)
+        successor_time = -1
         current_job = self.tasks[-1].job
         for task in self.tasks[::-1]:
-            # Check if task is in current_job
             if task.job != current_job:
                 successor_time = -1
                 current_job = task.job
