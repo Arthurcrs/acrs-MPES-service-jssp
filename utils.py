@@ -1,35 +1,20 @@
 import pandas as pd
-import re
-import matplotlib.colors as mcolors
 import numpy as np
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from matplotlib.patches import Patch
 
-def merge_intervals(intervals):
-    if not intervals:
-        return []
-
-    # Sort intervals based on start times
-    sorted_intervals = sorted(intervals, key=lambda x: x[0])
-
-    # Initialize the result list with the first interval
-    result = [sorted_intervals[0]]
-
-    # Merge overlapping intervals
-    for interval in sorted_intervals[1:]:
-        prev_interval = result[-1]
-        if interval[0] <= prev_interval[1]:  # Overlapping intervals
-            prev_interval[1] = max(prev_interval[1], interval[1])
-        else:
-            result.append(interval)
-
-    return result
-
-def add_label_to_remove(my_list, string_to_add):
-    if string_to_add not in my_list:
-        my_list.append(string_to_add)
-    return my_list
+def parse_label(label):
+    job_position, machine, start_time = label.split(',')
+    job  = job_position.split('_')[1]
+    position = job_position.split('_')[2]
+    return {
+        'job': int(job),
+        'position': int(position),
+        'machine': int(machine),
+        'start_time': int(start_time)
+    }
 
 def solution_to_dataframe(solution, jobs):
     job_names = []
@@ -64,22 +49,7 @@ def solution_to_dataframe(solution, jobs):
 
     return df
 
-def parse_label(label):
-    job_position, machine, start_time = label.split(',')
-    job  = job_position.split('_')[1]
-    position = job_position.split('_')[2]
-    return {
-        'job': int(job),
-        'position': int(position),
-        'machine': int(machine),
-        'start_time': int(start_time)
-    }
-
-def get_numeric_part(s):
-    result = re.findall(r'\d+', s)
-    return int(''.join(result)) if result else None
-
-def getColors(n):
+def get_colors(n):
     colormap = cm.viridis
     colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
     return colors
@@ -90,7 +60,7 @@ def export_gantt_diagram(image_title, solution_csv_file_path):
     df = pd.read_csv(solution_csv_file_path)
     unique_jobs = df['job'].unique()
     conditions = [(df['job'] == job) for job in unique_jobs]
-    values = getColors(len(unique_jobs))
+    values = get_colors(len(unique_jobs))
     df['color'] = np.select(conditions, values)
 
     fig, ax = plt.subplots(figsize=(16,6))
