@@ -42,7 +42,7 @@ def solution_to_dataframe(solution, jobs):
         if value == 1:
             parsed_label = parse_label(label)
             # Retrieve corresponding machine and duration from the problem definition
-            duration = jobs[f"job_{parsed_label['job']}"][parsed_label['position']][1]
+            duration = jobs[f"job_{parsed_label['job']}"][parsed_label['position']][2]
 
             # Append information to the lists
             job_names.append(parsed_label['job'])

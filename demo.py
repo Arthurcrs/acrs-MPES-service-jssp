@@ -6,15 +6,15 @@ from job_shop_scheduler import get_jss_bqm
 from utils import *
 
 # Problem Definition
-
-jobs = {"job_1": [(["1","2"], 1),(["3"], 3)],
-        "job_2": [(["2"], 2),(["3","1"], 1)],
-        "job_3": [(["1"], 4)]}
+# (machines,equipments,duration)
+jobs = {"job_1": [([1], [1,2], 1),([2], [1], 1)],
+        "job_2": [([3], [1], 1),([4], [1], 1)],
+        "job_3": [([5], [1], 1)]}
 
 # jobs = {"job_1": [(["1","3"], 2),(["3","2"], 1)],
 #         "job_2": [(["3"], 3)]}
 
-machine_downtimes = {"1":[1]}
+machine_downtimes = {}
 
 max_time = 5
 bqm = get_jss_bqm(jobs, machine_downtimes, max_time)
