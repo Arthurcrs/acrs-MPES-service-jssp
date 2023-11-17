@@ -6,12 +6,9 @@ precedence_constraint_penalty = 1
 share_machine_constraint_penalty = 1
 share_equipment_constraint_penalty = 1
 
-def get_jss_bqm(job_dict, machine_downtimes, makespan=None, stitch_kwargs=None):
-    if stitch_kwargs == None:
-        stitch_kwargs = {}
-
+def get_jss_bqm(job_dict, machine_downtimes, makespan=None):
     scheduler = JobShopScheduler(job_dict, machine_downtimes, makespan)
-    return scheduler.get_bqm(stitch_kwargs)
+    return scheduler.get_bqm()
 
 def get_label(task, machine, time):
     return f"{task.job}_{task.position},{machine},{time}".format(**locals())
@@ -206,15 +203,15 @@ class JobShopScheduler:
                         self.bqm.fix_variable(label, 0)
                         self.removed_labels.append(label)
     
-    def get_bqm(self, stitch_kwargs=None):
-        if stitch_kwargs is None:
-            stitch_kwargs = {}
-        
+    def get_bqm(self):  
+
+        # Adding Constraints
         self.add_one_start_constraint()
         self.add_share_machine_constraint()
         self.add_precedence_constraint()
         self.add_share_equipment_constraint()
-        
+
+        # Pruning Variables
         self._remove_absurd_times_labels()
         self._remove_machine_downtime_labels()
 
