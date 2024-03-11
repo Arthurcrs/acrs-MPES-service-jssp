@@ -54,8 +54,7 @@ def get_colors(n):
     colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
     return colors
 
-def export_gantt_diagram(image_title, solution_csv_file_path):
-    directory_path = "Results/"
+def export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path):
 
     df = pd.read_csv(solution_csv_file_path)
     unique_jobs = df['job'].unique()
@@ -81,4 +80,4 @@ def export_gantt_diagram(image_title, solution_csv_file_path):
     ax.bar_label(axx, df['position'], label_type='center')
 
     plt.grid(axis = 'x')
-    plt.savefig( directory_path + image_title + '.png')
+    plt.savefig( gantt_chart_path + image_title + '.png')

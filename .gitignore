@@ -10,5 +10,6 @@ pyvenv.cfg
 pip-selfcheck.json
 Gantt-Diagrams/*
 __pycache__/
-Results/*
+Demo/Results/*
 .vscode/
+Tests/Results/*

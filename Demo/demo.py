@@ -1,4 +1,8 @@
-from __future__ import print_function
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dimod.reference.samplers import ExactSolver
 from dwave.system.composites import EmbeddingComposite
 from dwave.system.samplers import DWaveSampler
@@ -7,6 +11,7 @@ from utils import *
 
 # Problem Definition
 # (machines,equipments,duration)
+
 jobs = {"job_1": [([1], [1,2], 1),([2], [1], 1)],
         "job_2": [([3], [1], 1),([4], [1], 1)],
         "job_3": [([5], [1], 1)]}
@@ -16,8 +21,8 @@ jobs = {"job_1": [([1], [1,2], 1),([2], [1], 1)],
 
 machine_downtimes = {}
 
-max_time = 5
-bqm = get_jss_bqm(jobs, machine_downtimes, max_time)
+timespan = 5
+bqm = get_jss_bqm(jobs, machine_downtimes, timespan)
 
 # Solve Problem
 
@@ -34,13 +39,15 @@ elif solver == "EmbeddingComposite":
 
 solution = sampleset.first
 
+path = "Demo/Results/"
+
 # Save Inputs
 
-file = open("Results/input.txt", "w")
+file = open(path + "input.txt", "w")
 file.write(str(jobs))
 file.close()
 
-file = open("Results/bqm.txt", "w")
+file = open(path + "input.txt", "w")
 file.write(str(bqm))
 file.close()
 
@@ -48,13 +55,13 @@ file.close()
 
 try:
     df = solution_to_dataframe(solution.sample,jobs)
-    df.to_csv('Results/solution.csv', index=False)
+    df.to_csv(path + "solution.csv", index=False)
     print("{:<{}}".format("[SUCCESS]", 10) + "Solution saved into solution.csv")
 except Exception as e:
     print("{:<{}}".format("[FAIL]", 10) + "Could not save solution into a csv file")
 
 try:
-    file = open("Results/solution.txt", "w")
+    file = open(path + "solution.txt", "w")
     file.write(str(solution))
     file.close()
     print("{:<{}}".format("[SUCCESS]", 10) + "Solution saved as text in solution.txt")
@@ -62,7 +69,7 @@ except Exception as e:
     print("{:<{}}".format("[FAIL]", 10) + "Could not save solution into a txt file")
 
 try:
-    export_gantt_diagram("Gantt-chart","Results/solution.csv")
+    export_gantt_diagram("Demo/Results/","Gantt-chart",path + "solution.csv")
     print("{:<{}}".format("[SUCCESS]", 10) + "Gantt Diagram can be vizualized")
 except Exception as e:
     print("{:<{}}".format("[FAIL]", 10) + "Gantt Diagram could not be build")
