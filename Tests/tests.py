@@ -32,7 +32,7 @@ tests = {
         "machine_downtimes" : {
 
         },
-        "timespan": 3
+        "timespan": 1
     },
     "TC_004" : {
         "jobs" : {
@@ -130,7 +130,7 @@ tests = {
         "machine_downtimes" : {
 
         },
-        "timespan": 3
+        "timespan": 1
     },
     "TC_014" : {
         "jobs" : {
