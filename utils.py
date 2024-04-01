@@ -82,6 +82,8 @@ def export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path):
     plt.grid(axis = 'x')
     plt.savefig( gantt_chart_path + image_title + '.png')
 
+    plt.close()
+
 def count_unique_machines(jobs):
     machines_set = set()
     for job_key, operations in jobs.items():
