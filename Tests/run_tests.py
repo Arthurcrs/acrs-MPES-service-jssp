@@ -55,27 +55,40 @@ for test_id in test_ids:
         test_manager.save_solution_in_csv()
         test_manager.create_gantt_diagram()
 
-        timing_info = sampleset.info['timing']
+        try:
+            timing_info = sampleset.info['timing']
 
-        new_row = pd.DataFrame([{
-            'Test ID': test_id,
-            'Jobs' : len(jobs),
-            'Operations' : count_total_operations(jobs),
-            'Machines': count_unique_machines(jobs),
-            'Equipments' : count_unique_equipment(jobs), 
-            'Timespan' : timespan,
-            'Variables': bqm.num_variables,
-            'Interactions': bqm.num_interactions,
-            'qpu_sampling_time' : timing_info['qpu_sampling_time'],
-            'qpu_readout_time_per_sample' : timing_info['qpu_readout_time_per_sample'],
-            'qpu_access_overhead_time' : timing_info['qpu_access_overhead_time'],
-            'qpu_anneal_time_per_sample' : timing_info['qpu_anneal_time_per_sample'],
-            'qpu_access_time' : timing_info['qpu_access_time'],
-            'qpu_programming_time' :  timing_info['qpu_programming_time'],
-            'qpu_delay_time_per_sample' : timing_info['qpu_delay_time_per_sample'],
-            'total_post_processing_time' : timing_info['total_post_processing_time'],
-            'post_processing_overhead_time' : timing_info['post_processing_overhead_time']
-        }])
+            new_row = pd.DataFrame([{
+                'Test ID': test_id,
+                'Jobs' : len(jobs),
+                'Operations' : count_total_operations(jobs),
+                'Machines': count_unique_machines(jobs),
+                'Equipments' : count_unique_equipment(jobs), 
+                'Timespan' : timespan,
+                'Variables': bqm.num_variables,
+                'Interactions': bqm.num_interactions,
+                'qpu_sampling_time' : timing_info['qpu_sampling_time'],
+                'qpu_readout_time_per_sample' : timing_info['qpu_readout_time_per_sample'],
+                'qpu_access_overhead_time' : timing_info['qpu_access_overhead_time'],
+                'qpu_anneal_time_per_sample' : timing_info['qpu_anneal_time_per_sample'],
+                'qpu_access_time' : timing_info['qpu_access_time'],
+                'qpu_programming_time' :  timing_info['qpu_programming_time'],
+                'qpu_delay_time_per_sample' : timing_info['qpu_delay_time_per_sample'],
+                'total_post_processing_time' : timing_info['total_post_processing_time'],
+                'post_processing_overhead_time' : timing_info['post_processing_overhead_time']
+            }])
+
+        except KeyError: # In case there is no timing info
+            new_row = pd.DataFrame([{
+                'Test ID': test_id,
+                'Jobs' : len(jobs),
+                'Operations' : count_total_operations(jobs),
+                'Machines': count_unique_machines(jobs),
+                'Equipments' : count_unique_equipment(jobs), 
+                'Timespan' : timespan,
+                'Variables': bqm.num_variables,
+                'Interactions': bqm.num_interactions,
+            }])
 
         df_bqm_details = pd.concat([df_bqm_details, new_row], ignore_index=True)
         
