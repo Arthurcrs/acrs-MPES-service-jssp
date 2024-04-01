@@ -1,8 +1,8 @@
 from utils import *
 from dimod import BinaryQuadraticModel
 
-def get_jss_bqm(job_dict, machine_downtimes, makespan=None):
-    scheduler = JobShopScheduler(job_dict, machine_downtimes, makespan)
+def get_jss_bqm(job_dict, machine_downtimes, timespan=None):
+    scheduler = JobShopScheduler(job_dict, machine_downtimes, timespan)
     return scheduler.get_bqm()
 
 def get_label(task, machine, time):
@@ -17,13 +17,13 @@ class Task:
         self.duration = duration
 
 class JobShopScheduler:
-    def __init__(self, job_dict, machine_downtimes, makespan=None):
+    def __init__(self, job_dict, machine_downtimes, timespan=None):
         self.bqm = BinaryQuadraticModel.empty('BINARY')
         self.machine_downtimes = machine_downtimes
         self.removed_labels = []
         self.tasks = []
         self.last_task_indices = []
-        self.makespan = makespan
+        self.timespan = timespan
         self.machines = []
         self.equipments = []
         self.tasks_with_machine = {}
@@ -44,7 +44,7 @@ class JobShopScheduler:
         last_task_indices = [-1]
         total_time = 0
 
-        # Populates self.tasks, self.makespan, self.machines and self.equipments
+        # Populates self.tasks, self.timespan, self.machines and self.equipments
         for job_name, job_tasks in jobs.items():
             last_task_indices.append(last_task_indices[-1] + len(job_tasks))
             job_time = 0
@@ -68,9 +68,9 @@ class JobShopScheduler:
         self.last_task_indices = last_task_indices[1:]
         self.number_of_jobs = len(self.last_task_indices)
 
-        if self.makespan is None:
-            self.makespan = total_time
-        self.makespan -= 1
+        if self.timespan is None:
+            self.timespan = total_time
+        self.timespan -= 1
 
         # Populates self.tasks_with_machine
         for m in self.machines:
@@ -89,7 +89,7 @@ class JobShopScheduler:
                     self.tasks_with_equipment[e].append(task)
         
         # Constraint penalty calculation 
-        self.makespan_function_weight = self.number_of_jobs * (self.number_of_jobs + 1)**(self.makespan) # maximum possible value of the makespan function
+        self.makespan_function_weight = self.number_of_jobs * (self.number_of_jobs + 1)**(self.timespan) # maximum possible value of the timespan function
         self.one_start_constraint_penalty = self.makespan_function_weight * 10
         self.precedence_constraint_penalty = self.makespan_function_weight * 10
         self.share_machine_constraint_penalty = self.makespan_function_weight * 10
@@ -101,7 +101,7 @@ class JobShopScheduler:
         """
         for i, job_min_end_time in zip(self.last_task_indices, self.jobs_min_end_times):
             last_task = self.tasks[i]
-            for t in range(job_min_end_time - last_task.duration + 1, self.makespan + 1):
+            for t in range(job_min_end_time - last_task.duration + 1, self.timespan + 1):
                 job_end_time = t + last_task.duration
                 bias = (self.number_of_jobs + 1)**(job_end_time - job_min_end_time)
                 for m in last_task.machines:
@@ -117,7 +117,7 @@ class JobShopScheduler:
         for task in self.tasks:
             linear_terms = []
             for m in task.machines:
-                for t in range(self.makespan + 1):
+                for t in range(self.timespan + 1):
                     label = get_label(task, m, t)
                     linear_terms.append((label, 1.0))
             self.bqm.add_linear_equality_constraint(linear_terms, self.one_start_constraint_penalty, -1)
@@ -129,8 +129,8 @@ class JobShopScheduler:
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
                 continue
-            for t in range(self.makespan + 1):
-                for tt in range(min(t + current_task.duration, self.makespan + 1)):
+            for t in range(self.timespan + 1):
+                for tt in range(min(t + current_task.duration, self.timespan + 1)):
                     current_labels = []
                     next_labels = []
                     quadratic_terms = []
@@ -150,8 +150,8 @@ class JobShopScheduler:
             task_pairs = [(task_1, task_2) for task_1 in self.tasks_with_machine[m] for task_2 in self.tasks_with_machine[m]]
             for task_1, task_2 in task_pairs:
                 if task_1.job != task_2.job or task_1.position != task_2.position:
-                    for t_1 in range(self.makespan + 1):
-                        for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
+                    for t_1 in range(self.timespan + 1):
+                        for t_2 in range(t_1, min(t_1 + task_1.duration, self.timespan + 1)):
                             label_1 = get_label(task_1, m, t_1)
                             label_2 = get_label(task_2, m, t_2)
                             self.bqm.add_quadratic(label_1,label_2, self.share_machine_constraint_penalty)                     
@@ -162,11 +162,11 @@ class JobShopScheduler:
         """  
         for task_1 in self.tasks:
             for m_1 in task_1.machines:
-                for t_1 in range(self.makespan + 1):
+                for t_1 in range(self.timespan + 1):
                     for e in task_1.equipments:
                         for task_2 in self.tasks_with_equipment[e]:
                             if task_1.job != task_2.job or task_1.position != task_2.position:
-                                for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
+                                for t_2 in range(t_1, min(t_1 + task_1.duration, self.timespan + 1)):
                                     for m_2 in task_2.machines:
                                         label_1 = get_label(task_1, m_1, t_1)
                                         label_2 = get_label(task_2, m_2, t_2)
@@ -221,7 +221,7 @@ class JobShopScheduler:
             successor_time += task.duration
             for t in range(successor_time):
                 for m in task.machines:
-                    label = get_label(task, m, self.makespan - t)
+                    label = get_label(task, m, self.timespan - t)
                     if label not in self.removed_labels:
                         self.bqm.fix_variable(label, 0)
                         self.removed_labels.append(label)
@@ -238,7 +238,7 @@ class JobShopScheduler:
         self._remove_absurd_times_labels()
         self._remove_machine_downtime_labels()
 
-        # Add makespan function
+        # Add timespan function
         self.add_makespan_function()
 
         return self.bqm
