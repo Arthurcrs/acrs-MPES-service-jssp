@@ -1,11 +1,6 @@
 from utils import *
 from dimod import BinaryQuadraticModel
 
-one_start_constraint_penalty = 1
-precedence_constraint_penalty = 1
-share_machine_constraint_penalty = 1
-share_equipment_constraint_penalty = 1
-
 def get_jss_bqm(job_dict, machine_downtimes, makespan=None):
     scheduler = JobShopScheduler(job_dict, machine_downtimes, makespan)
     return scheduler.get_bqm()
@@ -33,6 +28,14 @@ class JobShopScheduler:
         self.equipments = []
         self.tasks_with_machine = {}
         self.tasks_with_equipment = {}
+        self.jobs_min_end_times = []
+        self.number_of_jobs = 0
+
+        self.one_start_constraint_penalty = 1
+        self.precedence_constraint_penalty = 1
+        self.share_machine_constraint_penalty = 1
+        self.share_equipment_constraint_penalty = 1
+        self.makespan_function_weight = 1
 
         self._process_data(job_dict)
     
@@ -40,7 +43,6 @@ class JobShopScheduler:
         tasks = []
         last_task_indices = [-1]
         total_time = 0
-        max_job_time = 0
 
         # Populates self.tasks, self.makespan, self.machines and self.equipments
         for job_name, job_tasks in jobs.items():
@@ -60,12 +62,11 @@ class JobShopScheduler:
                     if equipment not in self.equipments:
                         self.equipments.append(equipment)
 
-            if job_time > max_job_time:
-                max_job_time = job_time
+            self.jobs_min_end_times.append(job_time)
 
         self.tasks = tasks
         self.last_task_indices = last_task_indices[1:]
-        self.max_job_time = max_job_time - 1
+        self.number_of_jobs = len(self.last_task_indices)
 
         if self.makespan is None:
             self.makespan = total_time
@@ -86,10 +87,33 @@ class JobShopScheduler:
                     if e not in self.tasks_with_equipment:
                         self.tasks_with_equipment[e] = []
                     self.tasks_with_equipment[e].append(task)
+        
+        # Constraint penalty calculation 
+        self.makespan_function_weight = self.number_of_jobs * (self.number_of_jobs + 1)**(self.makespan) # maximum possible value of the makespan function
+        self.one_start_constraint_penalty = self.makespan_function_weight * 10
+        self.precedence_constraint_penalty = self.makespan_function_weight * 10
+        self.share_machine_constraint_penalty = self.makespan_function_weight * 10
+        self.share_equipment_constraint_penalty = self.makespan_function_weight * 10
+
+    
+    def add_makespan_function(self):
+        """
+            Condition that penalizes solutions that the job is not finished as soon as possible
+        """
+        for i, job_min_end_time in zip(self.last_task_indices, self.jobs_min_end_times):
+            last_task = self.tasks[i]
+            for t in range(job_min_end_time - last_task.duration + 1, self.makespan + 1):
+                job_end_time = t + last_task.duration
+                bias = (self.number_of_jobs + 1)**(job_end_time - job_min_end_time)
+                for m in last_task.machines:
+                    label = get_label(last_task,m,t)
+                    pruned_variables = list(self.bqm.variables)
+                    if label in pruned_variables:
+                        self.bqm.add_variable(label, bias)
 
     def add_one_start_constraint(self):
         """
-              A task can start once and only once
+            A task can start once and only once
         """
         for task in self.tasks:
             linear_terms = []
@@ -97,11 +121,11 @@ class JobShopScheduler:
                 for t in range(self.makespan + 1):
                     label = get_label(task, m, t)
                     linear_terms.append((label, 1.0))
-            self.bqm.add_linear_equality_constraint(linear_terms, one_start_constraint_penalty, -1)
+            self.bqm.add_linear_equality_constraint(linear_terms, self.one_start_constraint_penalty, -1)
 
     def add_precedence_constraint(self):
         """
-              The tasks within a job must be executed in order
+            The tasks within a job must be executed in order
         """
         for current_task, next_task in zip(self.tasks, self.tasks[1:]):
             if current_task.job != next_task.job:
@@ -117,11 +141,11 @@ class JobShopScheduler:
                         next_labels.append(get_label(next_task, m, tt))                   
                     quadratic_terms = [(u, v) for u in current_labels for v in next_labels]
                     for current_label, next_label in quadratic_terms:
-                        self.bqm.add_quadratic(current_label, next_label, precedence_constraint_penalty)
+                        self.bqm.add_quadratic(current_label, next_label, self.precedence_constraint_penalty)
     
     def add_share_machine_constraint(self):
         """
-              There can be only one job running on each machine at any given point in time
+            There can be only one job running on each machine at any given point in time
         """  
         for m in self.machines:
             task_pairs = [(task_1, task_2) for task_1 in self.tasks_with_machine[m] for task_2 in self.tasks_with_machine[m]]
@@ -131,11 +155,11 @@ class JobShopScheduler:
                         for t_2 in range(t_1, min(t_1 + task_1.duration, self.makespan + 1)):
                             label_1 = get_label(task_1, m, t_1)
                             label_2 = get_label(task_2, m, t_2)
-                            self.bqm.add_quadratic(label_1,label_2,share_machine_constraint_penalty)                     
+                            self.bqm.add_quadratic(label_1,label_2, self.share_machine_constraint_penalty)                     
 
     def add_share_equipment_constraint(self):
         """
-              There can be only one task using a equipment at any given point in time
+            There can be only one task using a equipment at any given point in time
         """  
         for task_1 in self.tasks:
             for m_1 in task_1.machines:
@@ -147,7 +171,7 @@ class JobShopScheduler:
                                     for m_2 in task_2.machines:
                                         label_1 = get_label(task_1, m_1, t_1)
                                         label_2 = get_label(task_2, m_2, t_2)
-                                        self.bqm.add_quadratic(label_1,label_2,share_equipment_constraint_penalty)
+                                        self.bqm.add_quadratic(label_1,label_2, self.share_equipment_constraint_penalty)
 
     def _remove_machine_downtime_labels(self):
         """
@@ -214,5 +238,8 @@ class JobShopScheduler:
         # Pruning Variables
         self._remove_absurd_times_labels()
         self._remove_machine_downtime_labels()
+
+        # Add makespan function
+        self.add_makespan_function()
 
         return self.bqm
