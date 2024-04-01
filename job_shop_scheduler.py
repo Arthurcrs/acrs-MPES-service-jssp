@@ -94,8 +94,7 @@ class JobShopScheduler:
         self.precedence_constraint_penalty = self.makespan_function_weight * 10
         self.share_machine_constraint_penalty = self.makespan_function_weight * 10
         self.share_equipment_constraint_penalty = self.makespan_function_weight * 10
-
-    
+   
     def add_makespan_function(self):
         """
             Condition that penalizes solutions that the job is not finished as soon as possible
