@@ -30,6 +30,7 @@ class JobShopScheduler:
         self.tasks_with_equipment = {}
         self.jobs_min_end_times = []
         self.number_of_jobs = 0
+        self.number_of_machines = 0
 
         self.one_start_constraint_penalty = 1
         self.precedence_constraint_penalty = 1
@@ -67,6 +68,7 @@ class JobShopScheduler:
         self.tasks = tasks
         self.last_task_indices = last_task_indices[1:]
         self.number_of_jobs = len(self.last_task_indices)
+        self.number_of_machines = len(self.machines)
 
         if self.timespan is None:
             self.timespan = total_time
@@ -89,7 +91,7 @@ class JobShopScheduler:
                     self.tasks_with_equipment[e].append(task)
         
         # Constraint penalty calculation 
-        self.makespan_function_max_value = self.number_of_jobs * (self.number_of_jobs + 1)**(self.timespan) # maximum possible value of the timespan function
+        self.makespan_function_max_value = self.number_of_jobs * self.number_of_machines * (self.number_of_jobs + 1)**(self.timespan) # maximum possible value of the timespan function
         self.one_start_constraint_penalty = self.makespan_function_max_value ** 2
         self.precedence_constraint_penalty = self.makespan_function_max_value ** 2
         self.share_machine_constraint_penalty = self.makespan_function_max_value ** 2

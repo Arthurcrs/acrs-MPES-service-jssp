@@ -1,5 +1,6 @@
 import os
 from utils import *
+import warnings
 
 def get_test_ids():
     test_ids_file_path = 'Tests/tests_to_execute.txt'
@@ -43,3 +44,11 @@ class TestManager:
     def create_gantt_diagram(self):
 
         export_gantt_diagram(self.path, self.test_id + "-Gantt-chart", self.path + "solution.csv")
+
+    def save_sampleset_info(self,sampleset_info):
+        file = open(self.path + "sampleset_info.txt", "w")
+        try:
+            file.write(sampleset_info)
+        except:
+            warnings.warn('No Sampleset info')
+        file.close()
