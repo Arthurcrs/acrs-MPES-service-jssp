@@ -14,3 +14,4 @@ Demo/Results/*
 .vscode/
 Tests/Results/*
 Tests/bqm_details.csv
+Experiments/Results/*

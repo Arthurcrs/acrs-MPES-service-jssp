@@ -1,0 +1,6 @@
+Sampler,Variables,Interactions,Lowest Energy
+DwaveSampler,12,28,12.0
+LeapHybridSampler,12,28,9.0
+SimulatedAnnealingSampler,12,28,12.0
+TabuSampler,12,28,9.0
+SteepestDescentSampler,12,28,2925.0
