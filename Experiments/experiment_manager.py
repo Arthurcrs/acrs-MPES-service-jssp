@@ -1,6 +1,6 @@
 import os
 from utils import *
-import warnings
+import numpy as np
 
 def get_test_ids():
     test_ids_file_path = 'Tests/tests_to_execute.txt'
@@ -10,19 +10,20 @@ def get_test_ids():
 
 class ExperimentManager:
     
-    def __init__(self, sampler_title, jobs, machine_downtimes, timespan, bqm, solution):
+    def __init__(self, sampler_title, jobs, machine_downtimes, timespan, bqm, sampleset, results_directory_name):
         self.sampler_title = sampler_title
         self.jobs = jobs
         self.machine_downtimes = machine_downtimes
         self.timespan = timespan
         self.bqm = bqm
-        self.solution = solution
-        self.path = "Experiments/Results/" + sampler_title + "/"
+        self.solution = sampleset.first
+        self.path = "Experiments/Results/" + results_directory_name + "/" + sampler_title + "/"
         self.num_jobs = len(self.jobs)
         self.num_operations = count_total_operations(self.jobs)
         self.num_machines = count_unique_machines(self.jobs)
         self.num_equipments = count_unique_equipment(self.jobs)
         self.num_variables = self.num_operations * self.num_machines * self.timespan
+        self.min_energy = np.min(sampleset.record.energy)
 
         self.create_directories()
 
@@ -50,7 +51,7 @@ class ExperimentManager:
 
         export_gantt_diagram(self.path, self.sampler_title + "-Gantt-chart", self.path + "solution.csv")
 
-    def save_additional_info(self,energy):
+    def save_additional_info(self):
         file = open(self.path + "additional.txt", "w")
         file.write("BQM - Number of variables: {} \n".format(self.bqm.num_variables))
         file.write("BQM - Number of interactions: {} \n".format(self.bqm.num_interactions))
@@ -59,4 +60,5 @@ class ExperimentManager:
         file.write("Number of unique machines: {} \n".format(self.num_machines))
         file.write("Number of unique equipments: {} \n".format(self.num_equipments))
         file.write("Initial number of variables before trimming: {}".format(self.num_variables))
+        file.write("Energy: {} \n".format(self.min_energy))
         file.close()
