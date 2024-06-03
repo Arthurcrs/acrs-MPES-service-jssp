@@ -82,6 +82,8 @@ def export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path):
     plt.grid(axis = 'x')
     plt.savefig( gantt_chart_path + image_title + '.png')
 
+    plt.close()
+
 def count_unique_machines(jobs):
     machines_set = set()
     for job_key, operations in jobs.items():
@@ -103,3 +105,49 @@ def count_total_operations(jobs):
     for job_key, operations in jobs.items():
         total_operations += len(operations)
     return total_operations
+
+"""
+# This will generate a sample without machine downtimes, with a given number of jobs and timespan, all having the same number of operations, all operations
+# can be executed by a set of a given number of machines, using a number of equipments, and with a set duration
+"""
+def generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, timespan, n_equipments_per_operation, operation_duration):
+    jssp_dict = {
+        "jobs": {},
+        "machine_downtimes" : {},
+        "timespan": timespan
+    }
+    
+    for job_index in range(1, n_jobs + 1):
+        job_key = f"job_{job_index}"
+        operations = []
+        
+        for _ in range(n_operations_per_job):
+            machines = list(range(1, n_machines_per_operation + 1))
+            equipments = list(range(1, n_equipments_per_operation + 1))
+            time = operation_duration
+            operations.append((machines, equipments, time))
+        
+        jssp_dict["jobs"][job_key] = operations
+
+    return jssp_dict
+
+def generate_jssp_dict_based_on_size(n):
+    jobs = {}
+    for i in range(1, n+1):
+        job_operations = []
+        for j in range(1, n+1):
+            machines = list(range(1, n+1))
+            equipment = [j]
+            operation = (machines, equipment, 1)
+            job_operations.append(operation)
+        jobs[f"job_{i}"] = job_operations
+
+    timespan = n * n
+
+    test_case = {
+        "jobs": jobs,
+        "machine_downtimes": {},
+        "timespan": timespan
+    }
+
+    return test_case
