@@ -130,3 +130,24 @@ def generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, t
         jssp_dict["jobs"][job_key] = operations
 
     return jssp_dict
+
+def generate_jssp_dict_based_on_size(n):
+    jobs = {}
+    for i in range(1, n+1):
+        job_operations = []
+        for j in range(1, n+1):
+            machines = list(range(1, n+1))
+            equipment = [j]
+            operation = (machines, equipment, 1)
+            job_operations.append(operation)
+        jobs[f"job_{i}"] = job_operations
+
+    timespan = n * n
+
+    test_case = {
+        "jobs": jobs,
+        "machine_downtimes": {},
+        "timespan": timespan
+    }
+
+    return test_case

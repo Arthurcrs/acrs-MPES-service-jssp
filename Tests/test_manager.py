@@ -10,14 +10,14 @@ def get_test_ids():
 
 class TestManager:
     
-    def __init__(self, test_id, jobs, machine_downtimes, timespan, bqm, solution):
+    def __init__(self, test_id, jobs, machine_downtimes, timespan, bqm, solution, sampler_name, test_size):
         self.test_id = test_id
         self.jobs = jobs
         self.machine_downtimes = machine_downtimes
         self.timespan = timespan
         self.bqm = bqm
         self.solution = solution
-        self.path = "Tests/Results/" + test_id + "/"
+        self.path = f"Tests/Results/{test_size}_operations/{sampler_name}/{test_id}/"
 
         self.create_directories()
 

@@ -1,6 +1,8 @@
 import os
 from utils import *
 import numpy as np
+import matplotlib.pyplot as plt
+from collections import Counter
 
 def get_test_ids():
     test_ids_file_path = 'Tests/tests_to_execute.txt'
@@ -47,6 +49,20 @@ class ExperimentManager:
         df = solution_to_dataframe(self.solution.sample,self.jobs)
         df.to_csv(self.path + "solution.csv", index=False)
 
+    def save_energy_occurrences_graph(self,energies):
+        counter = Counter(energies)
+        values = list(counter.keys())
+        frequencies = list(counter.values())
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(values, frequencies, color='blue')
+        
+        plt.xlabel('Energy')
+        plt.ylabel('Occurrences')
+        plt.title('Energies occurrences in the Sampleset')
+        plt.savefig(self.path + 'frequency_plot.png')
+    
+    
     def create_gantt_diagram(self):
 
         export_gantt_diagram(self.path, self.sampler_title + "-Gantt-chart", self.path + "solution.csv")

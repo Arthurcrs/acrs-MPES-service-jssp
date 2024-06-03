@@ -18,8 +18,8 @@ from tabu import TabuSampler
 from greedy import SteepestDescentSampler
 
 samplers = [ 
-    ('DwaveSampler', EmbeddingComposite(DWaveSampler())),
-    ('LeapHybridSampler', LeapHybridSampler()),
+    # ('DwaveSampler', EmbeddingComposite(DWaveSampler())),
+    # ('LeapHybridSampler', LeapHybridSampler()),
     ('SimulatedAnnealingSampler', SimulatedAnnealingSampler()),
     ('TabuSampler', TabuSampler()),
     ('SteepestDescentSampler',SteepestDescentSampler()),
@@ -29,8 +29,8 @@ samplers = [
 df_bqm_details = pd.DataFrame(columns=['Sampler',
                                        'Jobs',
                                        'Operations on each job',
-                                       'Machines on each op',
-                                       'Equipments on each op',
+                                       'Machines on each operation',
+                                       'Equipments on each operation',
                                        'Variables before pruning',
                                        'BQM Variables',
                                        'BQM Interactions',
@@ -38,18 +38,33 @@ df_bqm_details = pd.DataFrame(columns=['Sampler',
                                        ])
 
 operation_duration = 1
-timespan = 6
 
-n_jobs_values = [1,2]
-n_operations_per_job_values = [1,2,3]
-n_machines_per_operation_values = [1,2]
-n_equipments_per_operation_values = [1,2]
+experiment_method = 'sizes' # 'linear_sizes' , njobs, operations per job and machines per operation have the same value, then each following operation in a job requires a different equipment
 
-for combination in itertools.product(n_jobs_values, n_operations_per_job_values, n_machines_per_operation_values, n_equipments_per_operation_values):
 
-    n_jobs, n_operations_per_job, n_machines_per_operation, n_equipments_per_operation = combination
-    jssp_parameters = generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, timespan, n_equipments_per_operation, operation_duration)
-    combination_string = "_".join(map(str, combination))
+if experiment_method == 'combination':
+    n_jobs_values = [1,2,3]
+    n_operations_per_job_values = [1,2,3]
+    n_machines_per_operation_values = [3]
+    n_equipments_per_operation_values = [1]
+    entries = itertools.product(n_jobs_values, n_operations_per_job_values, n_machines_per_operation_values, n_equipments_per_operation_values)
+elif experiment_method == 'sizes':
+    entries = [2,3,4,5,6,7,8,9,10,11,12,13]
+
+for entry in entries:
+
+    if experiment_method == 'combination':
+        n_jobs, n_operations_per_job, n_machines_per_operation, n_equipments_per_operation = entry
+        timespan = n_jobs * n_operations_per_job
+        jssp_parameters = generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, timespan, n_equipments_per_operation, operation_duration)
+        combination_string = "_".join(map(str, entry))
+    elif  experiment_method == 'sizes':
+        n_jobs = entry 
+        n_operations_per_job = entry
+        n_machines_per_operation = entry
+        n_equipments_per_operation =  1
+        jssp_parameters = generate_jssp_dict_based_on_size(entry)
+        combination_string = 'size_' + str(entry)
 
     for sampler in samplers:
         try:
@@ -59,7 +74,7 @@ for combination in itertools.product(n_jobs_values, n_operations_per_job_values,
             
             bqm = get_jss_bqm(jobs, machine_downtimes, timespan)
             
-            sampleset = sampler[1].sample(bqm)
+            sampleset = sampler[1].sample(bqm,num_reads = 1000)
             energies = sampleset.record.energy
             min_energy = np.min(energies)
 
@@ -70,11 +85,12 @@ for combination in itertools.product(n_jobs_values, n_operations_per_job_values,
             experiment_manager.save_solution_in_csv()
             experiment_manager.create_gantt_diagram()
             experiment_manager.save_additional_info()
+            experiment_manager.save_energy_occurrences_graph(energies)
 
             new_row = pd.DataFrame([{
                 'Sampler' : sampler[0],
                 'Jobs' : n_jobs,
-                'Operations on each job' : n_operations_per_job,
+                'Operations on each job': n_operations_per_job,
                 'Machines on each operation' : n_machines_per_operation,
                 'Equipments on each operation' : n_equipments_per_operation,
                 'Variables before pruning': n_operations_per_job * n_jobs * n_machines_per_operation * timespan,

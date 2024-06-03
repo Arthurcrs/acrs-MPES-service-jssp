@@ -92,10 +92,10 @@ class JobShopScheduler:
         
         # Constraint penalty calculation 
         self.makespan_function_max_value = self.number_of_jobs * self.number_of_machines * (self.number_of_jobs + 1)**(self.timespan) # maximum possible value of the timespan function
-        self.one_start_constraint_penalty = self.makespan_function_max_value ** 2
-        self.precedence_constraint_penalty = self.makespan_function_max_value ** 2
-        self.share_machine_constraint_penalty = self.makespan_function_max_value ** 2
-        self.share_equipment_constraint_penalty = self.makespan_function_max_value ** 2
+        self.one_start_constraint_penalty = self.makespan_function_max_value * 2
+        self.precedence_constraint_penalty = self.makespan_function_max_value * 2
+        self.share_machine_constraint_penalty = self.makespan_function_max_value * 2
+        self.share_equipment_constraint_penalty = self.makespan_function_max_value * 2
    
     def add_makespan_function(self):
         """
