@@ -204,6 +204,8 @@ class JobShopScheduler:
                 current_job = task.job
 
             for t in range(predecessor_time):
+                if t > self.timespan:
+                    continue
                 for m in task.machines:
                     label = get_label(task, m, t)
                     if label not in self.removed_labels:
@@ -236,11 +238,11 @@ class JobShopScheduler:
         self.add_precedence_constraint()
         self.add_share_equipment_constraint()
 
+        # Add timespan function
+        self.add_makespan_function()
+
         # Pruning Variables
         self._remove_absurd_times_labels()
         self._remove_machine_downtime_labels()
-
-        # Add timespan function
-        self.add_makespan_function()
 
         return self.bqm

@@ -3,7 +3,10 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import datetime
 from matplotlib.patches import Patch
+import matplotlib.ticker as mticker
+import matplotlib.patches as mpatches
 
 def parse_label(label):
     job_position, machine, start_time = label.split(',')
@@ -50,8 +53,8 @@ def solution_to_dataframe(solution, jobs):
     return df
 
 def get_colors(n):
-    colormap = cm.viridis
-    colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
+    colormap = cm.get_cmap('tab20')
+    colors = [mcolors.rgb2hex(colormap(i % 20 / 20)) for i in range(n)]
     return colors
 
 def export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path):
@@ -151,3 +154,82 @@ def generate_jssp_dict_based_on_size(n):
     }
 
     return test_case
+
+def calculate_total_variables(jobs, timespan):
+    total_variables = 0
+    
+    for job, operations in jobs.items():
+        for operation in operations:
+            machines_for_operation = len(operation[0])
+            total_variables += machines_for_operation * timespan
+
+    return total_variables
+
+def get_current_datetime_as_string():
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d_%H-%M-%S")
+
+def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path, machine_downtimes, timespan=None):
+    df = pd.read_csv(solution_csv_file_path)
+    unique_jobs = df['job'].unique()
+    conditions = [(df['job'] == job) for job in unique_jobs]
+    values = get_colors(len(unique_jobs))
+    df['color'] = np.select(conditions, values)
+
+    # Create the figure and axis
+    fig, ax = plt.subplots(figsize=(8, 8))  # Adjust figsize to get square proportions
+
+    # Add edge color to bars to separate consecutive operations
+    axx = ax.barh(df['machine'], df['duration'], align='center', left=df['start_time'], 
+                  color=df['color'], edgecolor='black', linewidth=1.5, label=df['position'], alpha=0.85, height=1.0)  # Set height=1.0 to remove vertical spacing
+
+    # Add machine downtimes with hatch patterns
+    for machine, downtimes in machine_downtimes.items():
+        for downtime in downtimes:
+            ax.barh(machine, 1, left=downtime, color='none', edgecolor='black', 
+                    linewidth=1.5, height=1.0, hatch='//', label='Downtime')
+
+    # Set the x-axis limit based on timespan if provided, else use maximum end_time from data
+    max_x = timespan if timespan else df['end_time'].max()
+    ax.set_xlim(0, max_x)
+
+    # Set y-axis to display all machines, even if they have no operations
+    all_machines = sorted(set(df['machine']).union(machine_downtimes.keys()))  # Combine machines with jobs and downtimes
+    ax.set_yticks(all_machines)  # Ensure all machines are included in y-axis
+
+    # Set the limits for the y-axis to control scaling
+    ax.set_ylim(min(all_machines) - 0.5, max(all_machines) + 0.5)  # Adjust to give some padding
+
+    # Set equal scaling for both axes
+    ax.set_aspect('equal', adjustable='box')
+
+    # Force the x-axis to display all integer values
+    ax.set_xticks(np.arange(0, max_x + 1, 1))  # Set x-ticks for every integer from 0 to max_x
+
+    # Set x-axis and y-axis labels
+    ax.set_xlabel('Instante')
+    ax.set_ylabel('Máquina', labelpad=10)
+
+    # Add legend for jobs and downtimes
+    handles = []
+    for job, color in zip(pd.unique(df['job']), pd.unique(df['color'])):
+        handles.append(mpatches.Patch(color=color, label=job))
+
+    # Add hatch pattern to legend
+    handles.append(mpatches.Patch(facecolor='none', edgecolor='black', hatch='//', label='Inatividade'))
+
+    # Move legend outside of the plot
+    plt.legend(handles=handles, title='Trabalhos', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Set the y-ticks to represent the machines
+    ax.bar_label(axx, df['position'], label_type='center')
+
+    # Remove all gridlines
+    ax.grid(False)
+
+    # Adjust the layout to make room for the legend
+    plt.tight_layout(pad=0.5, rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+
+    # Save the figure, using bbox_inches='tight' to remove extra white space
+    plt.savefig(gantt_chart_path + image_title + '.png', bbox_inches='tight')
+    plt.close()
