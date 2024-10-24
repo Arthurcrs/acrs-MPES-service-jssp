@@ -109,10 +109,6 @@ def count_total_operations(jobs):
         total_operations += len(operations)
     return total_operations
 
-"""
-# This will generate a sample without machine downtimes, with a given number of jobs and timespan, all having the same number of operations, all operations
-# can be executed by a set of a given number of machines, using a number of equipments, and with a set duration
-"""
 def generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, timespan, n_equipments_per_operation, operation_duration):
     jssp_dict = {
         "jobs": {},

@@ -195,175 +195,127 @@ class Simulation_Manager:
     def save_energy_distribution_graph_across_samplers(self, samplers_energies):
         plt.figure(figsize=(10, 6))
         
-        # Prepare a list for all energies and labels
         all_energies = []
         labels = []
         
-        # Iterate through each sampler to prepare the data
         for sampler_title, energies in samplers_energies:
             all_energies.append(energies)
             labels.append(sampler_title)
         
-        # Use logarithmic bins for large variations in energy values
         bins = np.logspace(np.log10(min([min(e) for e in all_energies])), 
                         np.log10(max([max(e) for e in all_energies])), 25)
         
-        # Plot the stacked histogram
         plt.hist(all_energies, bins=bins, label=labels, edgecolor='black', linewidth=1.2, stacked=True)
 
-        # Set the x-axis to log scale for better distribution visualization
         plt.xscale('log')
         
-        # Add a vertical line at the threshold for invalid results
         plt.axvline(x=self.makespan_function_max_value, color='red', linestyle='--', linewidth=2, label=f'Limite para resultados válidos')
         
-        # Adding labels and title
         plt.xlabel('Energia')
         plt.ylabel('Frequência')
         plt.title('Distribuição de energias (' + str(self.target_variables) + ' variáveis)')
         
-        # Add a legend and move it outside the plot
         plt.legend(title="Amostradores", bbox_to_anchor=(1.05, 1), loc='upper left')
         
-        # Adjust the layout to make room for the legend
-        plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+        plt.tight_layout(rect=[0, 0, 0.85, 1])
         
-        # Save the plot to the specified path
         plt.savefig(self.variable_directory_path + "energy_distribution_across_samplers.png", bbox_inches='tight')
         
-        # Close the plot to free memory
         plt.close()
 
     def save_samplers_times_graph(self, samplers_sample_times):
-        # Extract titles and times
         sampler_titles = [item[0] for item in samplers_sample_times]
         sample_times = [item[1] for item in samplers_sample_times]
 
-        # Create a bar chart to represent sampling times
         plt.figure(figsize=(10, 6))
         plt.barh(sampler_titles, sample_times, color='skyblue', edgecolor='black')
 
-        # Adding labels and title
         plt.xlabel('Tempo (segundos)')
         plt.ylabel('Amostradores')
         plt.title('Tempo de amostragem')
 
-        # Adding values on the bars
         for index, value in enumerate(sample_times):
-            plt.text(value + (max(sample_times) * 0.03), index, f'{value:.2f} s', va='center')  # Added space by shifting text
+            plt.text(value + (max(sample_times) * 0.03), index, f'{value:.2f} s', va='center')
         
-        # Add some extra space on the x-axis for the text
-        plt.xlim([0, max(sample_times) * 1.2])  # Extend x-axis to give more room for the text
+        plt.xlim([0, max(sample_times) * 1.2])
 
-        # Adjust layout for better presentation
         plt.tight_layout()
 
-        # Save the plot to the specified path
         plt.savefig(self.variable_directory_path + "samplers_sample_times.png")
         
-        # Close the plot to free memory
         plt.close()
 
 def save_best_solution_energy_graph(simulations_results, simulations_path):
 
-    # Prepare data for plotting
-    x_values = []  # Number of variables (first key)
-    y_values = []  # Min_energy
-    samplers = []  # Sampler names
+    x_values = []
+    y_values = []
+    samplers = []
 
-    # Iterate over the dictionary to collect data
     for num_variables, samplers_data in simulations_results.items():
         for sampler, results in samplers_data.items():
-            x_values.append(str(num_variables))  # Convert to string to treat x-axis as categorical
+            x_values.append(str(num_variables))
             y_values.append(results['min_energy'])
             samplers.append(sampler)
     
-    # Create a color map for different samplers
-    unique_samplers = list(set(samplers))  # Get unique samplers
-    colors = plt.cm.get_cmap('tab10', len(unique_samplers))  # Generate a color map
-
-    # Create a scatter plot
+    unique_samplers = list(set(samplers))
+    colors = plt.cm.get_cmap('tab10', len(unique_samplers))
     plt.figure(figsize=(10, 6))
 
-    # Plot each sampler's data using its corresponding color and line connection
     for i, sampler in enumerate(unique_samplers):
-        # Get the points for each sampler
         sampler_x = [x_values[j] for j in range(len(x_values)) if samplers[j] == sampler]
         sampler_y = [y_values[j] for j in range(len(y_values)) if samplers[j] == sampler]
         
-        # Scatter plot
         plt.scatter(sampler_x, sampler_y, color=colors(i), label=sampler)
         
-        # Line plot connecting the points
         plt.plot(sampler_x, sampler_y, color=colors(i), linestyle='-', linewidth=1)
 
-    # Set y-axis to log scale
     plt.yscale('log')
 
-    # Add axis labels and title
     plt.xlabel('Número de variáveis')
     plt.ylabel('Energia da melhor solução')
 
-    # Move legend outside of the plot
     plt.legend(title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Adjust layout to make room for the legend
-    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
 
-    # Save the plot to the specified path
     plt.savefig(simulations_path + "min_energy_vs_variables.png", bbox_inches='tight')
 
-    # Close the plot to free up memory
     plt.close()
 
 def save_sampling_time_graph(simulations_results, simulations_path):
 
-    # Prepare data for plotting
-    x_values = []  # Number of variables (first key)
-    y_values = []  # Sample time
-    samplers = []  # Sampler names
+    x_values = []
+    y_values = []
+    samplers = []
 
-    # Iterate over the dictionary to collect data
     for num_variables, samplers_data in simulations_results.items():
         for sampler, results in samplers_data.items():
-            x_values.append(str(num_variables))  # Convert to string to treat x-axis as categorical
-            y_values.append(results['sample_time'])  # Use 'sample_time' instead of 'min_energy'
+            x_values.append(str(num_variables))
+            y_values.append(results['sample_time'])
             samplers.append(sampler)
-    
-    # Create a color map for different samplers
-    unique_samplers = list(set(samplers))  # Get unique samplers
-    colors = plt.cm.get_cmap('tab10', len(unique_samplers))  # Generate a color map
 
-    # Create a scatter plot
+    unique_samplers = list(set(samplers))
+    colors = plt.cm.get_cmap('tab10', len(unique_samplers))
+
     plt.figure(figsize=(10, 6))
 
-    # Plot each sampler's data using its corresponding color and line connection
     for i, sampler in enumerate(unique_samplers):
-        # Get the points for each sampler
         sampler_x = [x_values[j] for j in range(len(x_values)) if samplers[j] == sampler]
         sampler_y = [y_values[j] for j in range(len(y_values)) if samplers[j] == sampler]
         
-        # Scatter plot
         plt.scatter(sampler_x, sampler_y, color=colors(i), label=sampler)
         
-        # Line plot connecting the points
         plt.plot(sampler_x, sampler_y, color=colors(i), linestyle='-', linewidth=1)
 
-    # No log scale for y-axis in this graph
-    # Add axis labels and title
     plt.xlabel('Número de variáveis')
     plt.ylabel('Tempo de amostragem (segundos)')
 
-    # Move legend outside of the plot
     plt.legend(title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Adjust layout to make room for the legend
-    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
 
-    # Save the plot to the specified path
     plt.savefig(simulations_path + "sample_time_vs_variables.png", bbox_inches='tight')
 
-    # Close the plot to free up memory
     plt.close()
 
 def save_dataframe_info(simulations_results, simulations_path):
