@@ -3,6 +3,7 @@ import os
 from utils import *
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class Simulation_Manager:
     def __init__(self, n_jobs, n_machines, n_equipments, timespan, op_per_job, max_n_machine_downtimes_intervals, op_max_duration, target_variables):
@@ -75,8 +76,8 @@ class Simulation_Manager:
 
         return jobs, machine_downtimes, self.timespan
    
-    def set_simulation_directory_path(self, current_datetime_as_string):
-        self.simulation_directory_path = "Simulations/Results/sim-" + current_datetime_as_string + "/"
+    def set_simulation_directory_path(self, simulations_path):
+        self.simulation_directory_path = simulations_path
         os.makedirs(self.simulation_directory_path, exist_ok=True)
         self.variable_directory_path = self.simulation_directory_path + str(self.target_variables) + "-variables/"
         os.makedirs(self.variable_directory_path, exist_ok=True)
@@ -205,7 +206,7 @@ class Simulation_Manager:
         
         # Use logarithmic bins for large variations in energy values
         bins = np.logspace(np.log10(min([min(e) for e in all_energies])), 
-                        np.log10(max([max(e) for e in all_energies])), 20)
+                        np.log10(max([max(e) for e in all_energies])), 25)
         
         # Plot the stacked histogram
         plt.hist(all_energies, bins=bins, label=labels, edgecolor='black', linewidth=1.2, stacked=True)
@@ -262,3 +263,168 @@ class Simulation_Manager:
         
         # Close the plot to free memory
         plt.close()
+
+def save_best_solution_energy_graph(simulations_results, simulations_path):
+
+    # Prepare data for plotting
+    x_values = []  # Number of variables (first key)
+    y_values = []  # Min_energy
+    samplers = []  # Sampler names
+
+    # Iterate over the dictionary to collect data
+    for num_variables, samplers_data in simulations_results.items():
+        for sampler, results in samplers_data.items():
+            x_values.append(str(num_variables))  # Convert to string to treat x-axis as categorical
+            y_values.append(results['min_energy'])
+            samplers.append(sampler)
+    
+    # Create a color map for different samplers
+    unique_samplers = list(set(samplers))  # Get unique samplers
+    colors = plt.cm.get_cmap('tab10', len(unique_samplers))  # Generate a color map
+
+    # Create a scatter plot
+    plt.figure(figsize=(10, 6))
+
+    # Plot each sampler's data using its corresponding color and line connection
+    for i, sampler in enumerate(unique_samplers):
+        # Get the points for each sampler
+        sampler_x = [x_values[j] for j in range(len(x_values)) if samplers[j] == sampler]
+        sampler_y = [y_values[j] for j in range(len(y_values)) if samplers[j] == sampler]
+        
+        # Scatter plot
+        plt.scatter(sampler_x, sampler_y, color=colors(i), label=sampler)
+        
+        # Line plot connecting the points
+        plt.plot(sampler_x, sampler_y, color=colors(i), linestyle='-', linewidth=1)
+
+    # Set y-axis to log scale
+    plt.yscale('log')
+
+    # Add axis labels and title
+    plt.xlabel('Número de variáveis')
+    plt.ylabel('Energia da melhor solução')
+
+    # Move legend outside of the plot
+    plt.legend(title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Adjust layout to make room for the legend
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+
+    # Save the plot to the specified path
+    plt.savefig(simulations_path + "min_energy_vs_variables.png", bbox_inches='tight')
+
+    # Close the plot to free up memory
+    plt.close()
+
+def save_sampling_time_graph(simulations_results, simulations_path):
+
+    # Prepare data for plotting
+    x_values = []  # Number of variables (first key)
+    y_values = []  # Sample time
+    samplers = []  # Sampler names
+
+    # Iterate over the dictionary to collect data
+    for num_variables, samplers_data in simulations_results.items():
+        for sampler, results in samplers_data.items():
+            x_values.append(str(num_variables))  # Convert to string to treat x-axis as categorical
+            y_values.append(results['sample_time'])  # Use 'sample_time' instead of 'min_energy'
+            samplers.append(sampler)
+    
+    # Create a color map for different samplers
+    unique_samplers = list(set(samplers))  # Get unique samplers
+    colors = plt.cm.get_cmap('tab10', len(unique_samplers))  # Generate a color map
+
+    # Create a scatter plot
+    plt.figure(figsize=(10, 6))
+
+    # Plot each sampler's data using its corresponding color and line connection
+    for i, sampler in enumerate(unique_samplers):
+        # Get the points for each sampler
+        sampler_x = [x_values[j] for j in range(len(x_values)) if samplers[j] == sampler]
+        sampler_y = [y_values[j] for j in range(len(y_values)) if samplers[j] == sampler]
+        
+        # Scatter plot
+        plt.scatter(sampler_x, sampler_y, color=colors(i), label=sampler)
+        
+        # Line plot connecting the points
+        plt.plot(sampler_x, sampler_y, color=colors(i), linestyle='-', linewidth=1)
+
+    # No log scale for y-axis in this graph
+    # Add axis labels and title
+    plt.xlabel('Número de variáveis')
+    plt.ylabel('Tempo de amostragem (segundos)')
+
+    # Move legend outside of the plot
+    plt.legend(title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Adjust layout to make room for the legend
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+
+    # Save the plot to the specified path
+    plt.savefig(simulations_path + "sample_time_vs_variables.png", bbox_inches='tight')
+
+    # Close the plot to free up memory
+    plt.close()
+
+def save_dataframe_info(simulations_results, simulations_path):
+
+    df = pd.DataFrame(columns=[
+                                'Variables before prunning',
+                                'Sampler',
+                                'Variables after prunning',
+                                'Variables interactions',
+                                'Jobs',
+                                'Operations',
+                                'Machines',
+                                'Equipments',
+                                'Timespan',
+                                'Energy - Lowest',
+                                'Energy - Highest',
+                                'Energy - Median',
+                                'Energy - Average',
+                                'Energy - Standard Deviation',
+                                'qpu_sampling_time',
+                                'qpu_readout_time_per_sample',
+                                'qpu_access_overhead_time',
+                                'qpu_anneal_time_per_sample',
+                                'qpu_access_time',
+                                'qpu_programming_time',
+                                'qpu_delay_time_per_sample',
+                                'total_post_processing_time',
+                                'post_processing_overhead_time',
+                            ])
+    
+    for num_variables, samplers_data in simulations_results.items():
+        for sampler, results in samplers_data.items():
+            new_row = pd.DataFrame([{
+                'Variables before prunning': num_variables,
+                'Sampler': sampler,
+                'Variables after prunning': results['simulation_manager'].bqm.num_variables,
+                'Variables interactions': results['simulation_manager'].bqm.num_interactions,
+                'Jobs': results['simulation_manager'].n_jobs,
+                'Operations': results['simulation_manager'].n_operations,
+                'Machines': results['simulation_manager'].n_machines,
+                'Equipments': results['simulation_manager'].n_equipments,
+                'Timespan': results['simulation_manager'].timespan,
+                'Energy - Lowest': results['min_energy'],
+                'Energy - Highest': max(results['energies']),
+                'Energy - Median': np.median(results['energies']),
+                'Energy - Average': np.mean(results['energies']),
+                'Energy - Standard Deviation': np.std(results['energies'])
+            }])
+            if sampler == 'DwaveSampler' or sampler == 'LeapHybridSampler':
+                new_row = pd.DataFrame([{
+                    'qpu_sampling_time' : results['timing_info']['qpu_sampling_time'],
+                    'qpu_readout_time_per_sample' : results['timing_info']['qpu_readout_time_per_sample'],
+                    'qpu_access_overhead_time' : results['timing_info']['qpu_access_overhead_time'],
+                    'qpu_anneal_time_per_sample' : results['timing_info']['qpu_anneal_time_per_sample'],
+                    'qpu_access_time' : results['timing_info']['qpu_access_time'],
+                    'qpu_programming_time' :  results['timing_info']['qpu_programming_time'],
+                    'qpu_delay_time_per_sample' : results['timing_info']['qpu_delay_time_per_sample'],
+                    'total_post_processing_time' : results['timing_info']['total_post_processing_time'],
+                    'post_processing_overhead_time' : results['timing_info']['post_processing_overhead_time']
+                }])
+
+            df = pd.concat([df, new_row], ignore_index=True)
+
+    df.to_csv(simulations_path + 'data.csv', index=False)

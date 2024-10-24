@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import time
+import copy
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from job_shop_scheduler import *
@@ -46,14 +47,18 @@ def get_simulation_managers():
 
     return simulation_managers
 
-n_samples = 1000
+n_samples = 10
 simulation_managers = get_simulation_managers()
 current_datetime_as_string = get_current_datetime_as_string()
+simulations_path = "Simulations/Results/sim-" + current_datetime_as_string + "/"
+
+simulations_results = {}
 
 for simulation_manager in simulation_managers:
 
     samplers_sample_times = []
     samplers_energies = []
+    simulation_results = {}
 
     jobs = simulation_manager.jobs
     machine_downtimes = simulation_manager.machine_downtimes
@@ -61,7 +66,7 @@ for simulation_manager in simulation_managers:
     scheduler = JobShopScheduler(jobs, machine_downtimes, timespan)    
     bqm = scheduler.get_bqm()
 
-    simulation_manager.set_simulation_directory_path(current_datetime_as_string)
+    simulation_manager.set_simulation_directory_path(simulations_path)
     simulation_manager.set_bqm(bqm)
     simulation_manager.set_makespan_function_max_value(scheduler.makespan_function_max_value)
 
@@ -72,11 +77,13 @@ for simulation_manager in simulation_managers:
         # ('DwaveSampler', EmbeddingComposite(DWaveSampler())),
         # ('LeapHybridSampler', LeapHybridSampler()),
         ('SimulatedAnnealing', SimulatedAnnealingSampler()),
-        ('Tabu', TabuSampler()),
-        ('SteepestDescent',SteepestDescentSampler()),
+        ('TabuSampler', TabuSampler()),
+        ('SteepestDescentSampler',SteepestDescentSampler()),
     ]
 
     for sampler in samplers:
+        
+        sampler_simulation_results = {}
 
         sampler_title = sampler[0]
         start_time = time.time()
@@ -104,5 +111,23 @@ for simulation_manager in simulation_managers:
         simulation_manager.save_energy_results_in_file()
         simulation_manager.save_sampleset_to_file()
 
+        sampler_simulation_results['solution'] = sampleset.first
+        sampler_simulation_results['energies'] = sampleset.record.energy
+        sampler_simulation_results['sample_time'] = sample_time
+        sampler_simulation_results['sampleset'] = sampleset
+        sampler_simulation_results['min_energy'] = min_energy
+        sampler_simulation_results['simulation_manager'] = copy.copy(simulation_manager)
+        
+        if sampler == 'DwaveSampler' or sampler == 'LeapHybridSampler':
+            timing_info = sampleset.info['timing']
+            sampler_simulation_results['timing_info'] = timing_info
+ 
+        simulation_results[sampler_title] = sampler_simulation_results
+
+    simulations_results[simulation_manager.target_variables] = simulation_results
     simulation_manager.save_energy_distribution_graph_across_samplers(samplers_energies)
     simulation_manager.save_samplers_times_graph(samplers_sample_times)
+
+save_best_solution_energy_graph(simulations_results, simulations_path)
+save_sampling_time_graph(simulations_results, simulations_path)
+save_dataframe_info(simulations_results, simulations_path)
