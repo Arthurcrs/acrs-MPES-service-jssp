@@ -46,7 +46,7 @@ def get_simulation_managers():
 
     return simulation_managers
 
-n_samples = 10
+n_samples = 100
 simulation_managers = get_simulation_managers()
 current_datetime_as_string = get_current_datetime_as_string()
 simulations_path = "Simulations/Results/sim-" + current_datetime_as_string + "/"
@@ -73,8 +73,8 @@ for simulation_manager in simulation_managers:
     simulation_manager.save_bqm_in_txt()
 
     samplers = [ 
-        # ('DwaveSampler', EmbeddingComposite(DWaveSampler())),
-        # ('LeapHybridSampler', LeapHybridSampler()),
+        ('LeapHybridSampler', LeapHybridSampler()),
+        ('DwaveSampler', EmbeddingComposite(DWaveSampler())),
         ('SimulatedAnnealing', SimulatedAnnealingSampler()),
         ('TabuSampler', TabuSampler()),
         ('SteepestDescentSampler',SteepestDescentSampler()),
@@ -86,7 +86,10 @@ for simulation_manager in simulation_managers:
 
         sampler_title = sampler[0]
         start_time = time.time()
-        sampleset = sampler[1].sample(bqm,num_reads = n_samples)
+        if sampler[0] == 'LeapHybridSampler':
+            sampleset = sampler[1].sample(bqm)
+        else:
+            sampleset = sampler[1].sample(bqm,num_reads = n_samples)
         end_time = time.time()
         sample_time = end_time - start_time
 
@@ -101,12 +104,12 @@ for simulation_manager in simulation_managers:
         simulation_manager.set_energies(energies)
         simulation_manager.set_sampleset(sampleset)
         simulation_manager.set_min_energies(min_energy)
+        simulation_manager.set_sampler_title(sampler_title)
         simulation_manager.set_sampler_results_directory_path(sampler_title)
 
         simulation_manager.save_solution_in_csv()
         simulation_manager.create_gantt_diagram()
         simulation_manager.save_additional_info()
-        simulation_manager.save_energy_occurrences_graph()
         simulation_manager.save_energy_results_in_file()
         simulation_manager.save_sampleset_to_file()
 
@@ -116,6 +119,8 @@ for simulation_manager in simulation_managers:
         sampler_simulation_results['sampleset'] = sampleset
         sampler_simulation_results['min_energy'] = min_energy
         sampler_simulation_results['simulation_manager'] = copy.copy(simulation_manager)
+        sampler_simulation_results['is_solution_valid'] = simulation_manager.makespan_function_max_value >= min_energy
+        sampler_simulation_results['ratio of valid solutions'] = simulation_manager.percentage_of_valid_results
         
         if sampler == 'DwaveSampler' or sampler == 'LeapHybridSampler':
             timing_info = sampleset.info['timing']
@@ -130,3 +135,4 @@ for simulation_manager in simulation_managers:
 save_best_solution_energy_graph(simulations_results, simulations_path)
 save_sampling_time_graph(simulations_results, simulations_path)
 save_dataframe_info(simulations_results, simulations_path)
+save_valid_solution_ratio_graph(simulations_results, simulations_path)

@@ -4,8 +4,10 @@ from utils import *
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import PercentFormatter
 
 class Simulation_Manager:
+    
     def __init__(self, n_jobs, n_machines, n_equipments, timespan, op_per_job, max_n_machine_downtimes_intervals, op_max_duration, target_variables):
         
         self.n_jobs = n_jobs                     
@@ -108,6 +110,9 @@ class Simulation_Manager:
     def set_sample_time(self, sample_time):
         self.sample_time = sample_time
 
+    def set_sampler_title(self,sampler_title):
+        self.sampler_title = sampler_title
+
     def save_input_in_txt(self):
 
         file = open(self.variable_directory_path + "inputs.txt", "w")
@@ -161,7 +166,12 @@ class Simulation_Manager:
         file.close()
 
     def create_gantt_diagram(self):
-        new_export_gantt_diagram(self.sampler_results_directory_path, self.sampler_title + "-Gantt-chart", self.sampler_results_directory_path + "solution.csv", self.machine_downtimes, self.timespan)
+        new_export_gantt_diagram(self.sampler_results_directory_path, 
+                                 self.sampler_title + "-Gantt-chart", 
+                                 self.sampler_results_directory_path + "solution.csv", 
+                                 self.machine_downtimes, 
+                                 self.timespan, 
+                                 'Melhor solução - ' + self.sampler_title + ' - ' + str(self.target_variables) + ' variáveis') 
 
     def save_additional_info(self):
         file = open(self.sampler_results_directory_path + "additional.txt", "w")
@@ -187,6 +197,7 @@ class Simulation_Manager:
         total_count = len(self.energies)
         valid_count = np.sum(self.energies <= self.makespan_function_max_value)
         valid_percentage = (valid_count / total_count) * 100
+        self.percentage_of_valid_results = valid_percentage
         return valid_percentage
     
     def save_energy_results_in_file(self):
@@ -213,7 +224,7 @@ class Simulation_Manager:
         
         plt.xlabel('Energia')
         plt.ylabel('Frequência')
-        plt.title('Distribuição de energias (' + str(self.target_variables) + ' variáveis)')
+        plt.title('Distribuição de energias - ' + str(self.target_variables) + ' variáveis')
         
         plt.legend(title="Amostradores", bbox_to_anchor=(1.05, 1), loc='upper left')
         
@@ -231,8 +242,7 @@ class Simulation_Manager:
         plt.barh(sampler_titles, sample_times, color='skyblue', edgecolor='black')
 
         plt.xlabel('Tempo (segundos)')
-        plt.ylabel('Amostradores')
-        plt.title('Tempo de amostragem')
+        plt.title('Tempo de amostragem - '+ str(self.target_variables) + ' variáveis')
 
         for index, value in enumerate(sample_times):
             plt.text(value + (max(sample_times) * 0.03), index, f'{value:.2f} s', va='center')
@@ -330,6 +340,8 @@ def save_dataframe_info(simulations_results, simulations_path):
                                 'Machines',
                                 'Equipments',
                                 'Timespan',
+                                'Is solution valid?',
+                                'Ratio of valid solutions',
                                 'Energy - Lowest',
                                 'Energy - Highest',
                                 'Energy - Median',
@@ -358,6 +370,8 @@ def save_dataframe_info(simulations_results, simulations_path):
                 'Machines': results['simulation_manager'].n_machines,
                 'Equipments': results['simulation_manager'].n_equipments,
                 'Timespan': results['simulation_manager'].timespan,
+                'Is solution valid?': results['is_solution_valid'],
+                'Ratio of valid solutions': results['ratio of valid solutions'],
                 'Energy - Lowest': results['min_energy'],
                 'Energy - Highest': max(results['energies']),
                 'Energy - Median': np.median(results['energies']),
@@ -380,3 +394,54 @@ def save_dataframe_info(simulations_results, simulations_path):
             df = pd.concat([df, new_row], ignore_index=True)
 
     df.to_csv(simulations_path + 'data.csv', index=False)
+
+def save_valid_solution_ratio_graph(simulations_results, simulations_path):
+
+    x_values = []
+    y_values = []
+    samplers = []
+
+    # Collect data for plotting
+    for num_variables, samplers_data in simulations_results.items():
+        for sampler, results in samplers_data.items():
+            x_values.append(str(num_variables))
+            y_values.append(results['ratio of valid solutions'] * 100)  # Convert ratio to percentage
+            samplers.append(sampler)
+    
+    # Create a color map for different samplers
+    unique_samplers = list(set(samplers))
+    colors = plt.cm.get_cmap('tab10', len(unique_samplers))
+    plt.figure(figsize=(10, 6))
+
+    # Plot each sampler's data using its corresponding color and line connection
+    for i, sampler in enumerate(unique_samplers):
+        sampler_x = [x_values[j] for j in range(len(x_values)) if samplers[j] == sampler]
+        sampler_y = [y_values[j] for j in range(len(y_values)) if samplers[j] == sampler]
+        
+        # Scatter plot
+        plt.scatter(sampler_x, sampler_y, color=colors(i), label=sampler)
+        
+        # Line plot connecting the points
+        plt.plot(sampler_x, sampler_y, color=colors(i), linestyle='-', linewidth=1)
+
+    # Remove log scale and format y-axis to display percentages
+    plt.gca().yaxis.set_major_formatter(PercentFormatter())  # Format y-axis as percentage
+
+    # Set y-axis limit to 0-100%
+    plt.ylim(0, 110)
+
+    # Add axis labels and title
+    plt.xlabel('Número de variáveis')
+    plt.ylabel('Porcentagem de soluções válidas obtidas')
+
+    # Move legend outside of the plot
+    plt.legend(title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # Adjust layout to make room for the legend
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
+
+    # Save the plot to the specified path
+    plt.savefig(simulations_path + "valid_solution_ratio_graph.png", bbox_inches='tight')
+
+    # Close the plot to free up memory
+    plt.close()

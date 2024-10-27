@@ -165,7 +165,7 @@ def get_current_datetime_as_string():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d_%H-%M-%S")
 
-def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path, machine_downtimes, timespan=None):
+def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path, machine_downtimes, timespan=None, title=None):
     df = pd.read_csv(solution_csv_file_path)
     unique_jobs = df['job'].unique()
     conditions = [(df['job'] == job) for job in unique_jobs]
@@ -222,6 +222,8 @@ def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_pa
 
     # Remove all gridlines
     ax.grid(False)
+
+    plt.title(title)
 
     # Adjust the layout to make room for the legend
     plt.tight_layout(pad=0.5, rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
