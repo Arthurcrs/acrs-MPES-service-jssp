@@ -165,6 +165,12 @@ def get_current_datetime_as_string():
     now = datetime.datetime.now()
     return now.strftime("%Y-%m-%d_%H-%M-%S")
 
+def get_percentage_of_valid_results(energies, makespan_function_max_value):
+    total_count = len(energies)
+    valid_count = np.sum(energies <= makespan_function_max_value)
+    valid_percentage = (valid_count / total_count) * 100
+    return valid_percentage
+
 def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path, machine_downtimes, timespan=None, title=None):
     df = pd.read_csv(solution_csv_file_path)
     unique_jobs = df['job'].unique()
