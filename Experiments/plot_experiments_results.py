@@ -1,15 +1,33 @@
 import sys
 import os
+import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pickle
 from Experiments.experiment_manager import *
 
 
-date_of_experiment = '2024-10-28_02-37-24'
+date_of_experiment = 'final'
 results_dir_path = "Experiments/Results/" + date_of_experiment + "/"
+sampler_colors = {
+            'DwaveSampler': '#FF0000',  
+            'LeapHybridSampler': '#0000FF',  
+            'SimulatedAnnealing': '#006400',  
+            'TabuSampler': '#8B4513',  
+            'SteepestDescentSampler': '#FF00FF'  
+        }
 
-def redo_experiments_results(results_dir_path):
-    with open(results_dir_path + 'experiment_manager.pkl', 'rb') as file:
-        experiment_manager = pickle.load(file)
-    experiment_manager.plot_minimum_energies_vs_variables()
+with open(results_dir_path + 'experiment_manager.pkl', 'rb') as file:
+    experiment_manager = pickle.load(file)
+
+results_df = pd.read_csv(results_dir_path + 'results.csv')
+
+experiment_manager.set_results_path(results_dir_path)
+experiment_manager.set_results_df(results_df)
+experiment_manager.set_sampler_colors(sampler_colors)
+experiment_manager.plot_minimum_energies_vs_variables()
+experiment_manager.plot_sampling_time_vs_variables()
+experiment_manager.plot_best_sampler_per_test()
+experiment_manager.plot_best_sampler_percentage_per_bin()
+experiment_manager.plot_chain_break_histogram()
+experiment_manager.plot_variables_vs_interactions()

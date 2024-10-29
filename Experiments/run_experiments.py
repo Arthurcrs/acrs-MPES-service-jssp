@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import *
 from Experiments.experiment_manager import *
-from Experiments.plot_experiments_results import *
+import pickle
 
 from dwave.system.samplers import DWaveSampler
 from dwave.system.composites import EmbeddingComposite
@@ -18,22 +18,22 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 results_dir_path = "Experiments/Results/" + get_current_datetime_as_string() + "/"
 
 samplers = [
-    # {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
     # {'name': 'DwaveSampler', 'sampler': EmbeddingComposite(DWaveSampler())},
+    # {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
     {'name': 'SimulatedAnnealing', 'sampler': SimulatedAnnealingSampler()},
     {'name': 'TabuSampler', 'sampler': TabuSampler()},
     {'name': 'SteepestDescentSampler', 'sampler': SteepestDescentSampler()}
 ]
 
 parameters_ranges = {
-    'n_jobs':                 [2,5],
-    'max_op_in_job':          [2,5], 
+    'n_jobs':                 [2,4],
+    'max_op_in_job':          [2,4], 
     'n_possible_machines':    [2,4], 
     'n_possible_equipments':  [0,2], 
 }
 
-n_reads = 20
-repetitions = 5
+n_reads = 50
+repetitions = 1
 max_operation_duration = 2
 
 experiment_manager = ExperimentManager(n_reads, repetitions, max_operation_duration, samplers, parameters_ranges, results_dir_path)

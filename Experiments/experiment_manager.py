@@ -24,25 +24,53 @@ class ExperimentManager:
         self.parameter_combinations = self.generate_parameter_combinations()
         self.init_results_df()
 
+        self.sampler_colors = {
+            'DwaveSampler': '#FF0000',  
+            'LeapHybridSampler': '#0000FF',  
+            'SimulatedAnnealing': '#006400',  
+            'TabuSampler': '#8B4513',  
+            'SteepestDescentSampler': '#FF00FF'  
+        }
+
     def init_results_df(self):
         columns = [
-            "Amostrador",
-            "Número de trabalhos",
-            "Número de máquinas distintas utilizadas",
-            "Número de equipamentos distintos utilizados",
-            "Número de operações",
-            "Timespan",
-            "Número de variáveis",
-            "Número de interações",
-            "Menor Energia",
-            "Tempo de amostragem",
-            "Percentual de soluções válidas",
-            "Parâmetro: Número de trabalhos",
-            "Parâmetro: Máximo número de operações em um trabalho",
-            "Parâmetro: Número de máquinas",
-            "Parâmetro: Número de equipamentos possíveis"
+            'Amostrador',
+            'Número de trabalhos',
+            'Número de máquinas distintas utilizadas',
+            'Número de equipamentos distintos utilizados',
+            'Número de operações',
+            'Timespan',
+            'Número de variáveis',
+            'Número de interações',
+            'Menor Energia',
+            'Tempo de amostragem',
+            'Percentual de soluções válidas',
+            'Parâmetro: Número de trabalhos',
+            'Parâmetro: Máximo número de operações em um trabalho',
+            'Parâmetro: Número de máquinas',
+            'Parâmetro: Número de equipamentos possíveis',
+            'qpu_sampling_time',
+            'qpu_readout_time_per_sample',
+            'qpu_access_overhead_time',
+            'qpu_anneal_time_per_sample',
+            'qpu_access_time',
+            'qpu_programming_time',
+            'qpu_delay_time_per_sample',
+            'total_post_processing_time',
+            'post_processing_overhead_time',
+            'Percentual médio de chainbreaks entre as amostras',
+            'Percentual de amostras com alta quantidade de chain breaks (>15%)'
         ]
         self.results_df = pd.DataFrame(columns=columns)
+
+    def set_results_df(self, results_df):
+        self.results_df = results_df
+
+    def set_results_path(self, results_dir_path):
+        self.results_dir_path = results_dir_path
+
+    def set_sampler_colors(self, sampler_colors):
+        self.sampler_colors = sampler_colors
 
     def generate_parameter_combinations(self):
         param_names = list(self.parameter_ranges.keys())
@@ -61,18 +89,38 @@ class ExperimentManager:
                     bqm = scheduler.get_bqm()
                     makespan_function_max_value = scheduler.makespan_function_max_value
                     for sampler in self.samplers:
-                        start_time = time.time()
-                        if sampler['name'] == 'LeapHybridSampler':
-                            sampleset = sampler['sampler'].sample(bqm)
-                        else:
-                            sampleset = sampler['sampler'].sample(bqm,num_reads = self.n_reads)
-                        end_time = time.time()
-                        sample_time = end_time - start_time
-                        energies = sampleset.record.energy
-                        self.add_results_to_df(sampler['name'], sample_time, jobs, timespan, bqm, energies, makespan_function_max_value, parameters)
+                        try:
+                            start_time = time.time()
+                            if sampler['name'] == 'LeapHybridSampler':
+                                sampleset = sampler['sampler'].sample(bqm)
+                            else:
+                                sampleset = sampler['sampler'].sample(bqm,num_reads = self.n_reads)
+                            if sampler['name'] == 'DwaveSampler':
+                                qpu_timing_info = sampleset.info['timing']
+                                chain_breaks_data = sampleset.record.chain_break_fraction
+                                average_chain_break_percentage = np.mean(chain_breaks_data) * 100
+                                percentage_of_samples_with_high_chain_breaks = 100 * np.count_nonzero(chain_breaks_data > 0.15)/len(chain_breaks_data)
+                            else:
+                                qpu_timing_info = None
+                                average_chain_break_percentage = None
+                                percentage_of_samples_with_high_chain_breaks = None
+                            end_time = time.time()
+                            sample_time = end_time - start_time
+                            energies = sampleset.record.energy
+                            self.add_results_to_df(sampler['name'], 
+                                                sample_time, 
+                                                jobs, timespan, 
+                                                bqm, energies, 
+                                                makespan_function_max_value, 
+                                                parameters, 
+                                                qpu_timing_info, 
+                                                average_chain_break_percentage, 
+                                                percentage_of_samples_with_high_chain_breaks)
+                        except Exception as e:
+                            print(f"An error occurred: {e}")
                 pbar.update(1)
         experiment_end_time = time.time()
-        print('Experiments finished in: ' + str((experiment_end_time - experiment_start_time)/60) + 'minutes')
+        print('Experiments finished in: ' + str(round((experiment_end_time - experiment_start_time)/60,1)) + ' minutes')
 
     def generate_sjssp(self, parameters):
         jobs = {}
@@ -123,7 +171,7 @@ class ExperimentManager:
 
         return jobs, machine_downtimes, timespan
 
-    def add_results_to_df(self, sampler_name, sample_time, jobs, timespan, bqm, energies, makespan_function_max_value, parameters):
+    def add_results_to_df(self, sampler_name, sample_time, jobs, timespan, bqm, energies, makespan_function_max_value, parameters, qpu_timing_info, average_chain_break_percentage, percentage_of_samples_with_high_chain_breaks):
         # Create a new row as a DataFrame
         new_row = pd.DataFrame([{
             'Amostrador': sampler_name,
@@ -142,6 +190,12 @@ class ExperimentManager:
             'Parâmetro: Número de máquinas': parameters['n_possible_machines'],
             'Parâmetro: Número de equipamentos possíveis': parameters['n_possible_equipments'],
         }])
+
+        if sampler_name == 'DwaveSampler':
+            for key, value in qpu_timing_info.items():
+                new_row[key] = value
+            new_row['Percentual médio de chainbreaks entre as amostras'] = average_chain_break_percentage
+            new_row['Percentual de amostras com alta quantidade de chain breaks (>15%)'] = percentage_of_samples_with_high_chain_breaks
         
         self.results_df = pd.concat([self.results_df, new_row], ignore_index=True)
 
@@ -150,39 +204,336 @@ class ExperimentManager:
         self.results_df.to_csv(self.results_dir_path + 'results.csv', index=False)
 
     def plot_minimum_energies_vs_variables(self):
-        # Define colors based on 'Amostrador' categories
-        amostrador_categories = self.results_df['Amostrador'].astype('category')
-        colors = amostrador_categories.cat.codes  # Convert categories to numeric codes
-
+        
         # Create figure
         plt.figure(figsize=(10, 6))
-        scatter = plt.scatter(
-            x=self.results_df['Número de variáveis'],
-            y=self.results_df['Menor Energia'],
-            c=colors,  # Use numeric codes for color mapping
-            cmap='viridis',  # Choosing a color map
-            marker='o'  # Dot marker
-        )
+
+        # Plot each sampler's points with its assigned color and smaller size
+        for sampler, color in self.sampler_colors.items():
+            sampler_data = self.results_df[self.results_df['Amostrador'] == sampler]
+            plt.scatter(
+                x=sampler_data['Número de variáveis'],
+                y=sampler_data['Menor Energia'],
+                color=color,
+                label=sampler,
+                marker='o',
+                s=7.5  # Set dot size
+            )
 
         # Set logarithmic scale for the y-axis
         plt.yscale('log')
 
         # Adding labels and title
         plt.xlabel('Número de variáveis')
-        plt.ylabel('Menor energia (escala logarítimica)')
+        plt.ylabel('Menor energia')
         plt.title('Menor energia obtida nos experimentos')
 
-        # Custom discrete legend based on unique samplers
-        unique_samplers = amostrador_categories.cat.categories
+        # Custom legend
         handles = [
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=plt.cm.viridis(i / len(unique_samplers)), markersize=10) 
-            for i, sampler in enumerate(unique_samplers)
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, unique_samplers, title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
         output_path = os.path.join(self.results_dir_path, 'minimum_energies_vs_variables.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_sampling_time_vs_variables(self):
+        # Create figure
+        plt.figure(figsize=(10, 6))
+
+        # Plot each sampler's points with its assigned color and smaller size
+        for sampler, color in self.sampler_colors.items():
+            sampler_data = self.results_df[self.results_df['Amostrador'] == sampler]
+            plt.scatter(
+                x=sampler_data['Número de variáveis'],
+                y=sampler_data['Tempo de amostragem'],
+                color=color,
+                label=sampler,
+                marker='o',
+                s=7.5  # Set dot size
+            )
+
+        # Set logarithmic scale for the y-axis to handle wide variations in sampling times
+        plt.yscale('log')
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis')
+        plt.ylabel('Tempo de amostragem (segundos)')
+        plt.title('Tempo de amostragem nos experimentos')
+
+        # Custom legend
+        handles = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
+        ]
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'sampling_time_vs_variables.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_best_sampler_per_test(self):
+        # Create figure
+        plt.figure(figsize=(10, 6))
+
+        # Identify unique tests based on specified columns
+        test_columns = [
+            'Parâmetro: Número de trabalhos',
+            'Parâmetro: Máximo número de operações em um trabalho',
+            'Parâmetro: Número de máquinas',
+            'Parâmetro: Número de equipamentos possíveis'
+        ]
+
+        # Group by the test columns and find the row with the lowest energy for each test
+        best_results = self.results_df.loc[self.results_df.groupby(test_columns)['Menor Energia'].idxmin()]
+
+        # Plot each sampler's best result for each test
+        for sampler, color in self.sampler_colors.items():
+            sampler_data = best_results[best_results['Amostrador'] == sampler]
+            plt.scatter(
+                x=sampler_data['Número de variáveis'],
+                y=[sampler] * len(sampler_data),  # Use sampler names as y values
+                color=color,
+                label=sampler,
+                marker='o',
+                s=7.5  # Set dot size
+            )
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis')
+        plt.ylabel('Amostrador')
+        plt.title('Melhor resultado (Menor Energia) por Teste e Número de Variáveis')
+
+        # Custom legend
+        handles = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
+        ]
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'best_sampler_per_test.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_best_sampler_percentage_per_bin(self):
+        # Create a new column for binning variable counts into intervals of 25
+        self.results_df['Variable_Bin'] = (self.results_df['Número de variáveis'] // 25) * 25
+
+        # Define columns that uniquely identify a test
+        test_columns = [
+            'Parâmetro: Número de trabalhos',
+            'Parâmetro: Máximo número de operações em um trabalho',
+            'Parâmetro: Número de máquinas',
+            'Parâmetro: Número de equipamentos possíveis'
+        ]
+
+        # Group by test and rank samplers based on energy within each test
+        ranked_results = (
+            self.results_df
+            .sort_values(by=['Menor Energia'])  # Sort by energy within each test
+            .groupby(test_columns + ['Variable_Bin'])
+            .apply(lambda x: x.assign(Rank=range(1, len(x) + 1)))  # Assign ranks within each test and bin
+            .reset_index(drop=True)
+        )
+
+        # Filter only Rank 1 results (best samplers)
+        best_samplers = ranked_results[ranked_results['Rank'] == 1]
+
+        # Count the number of times each sampler was best in each bin
+        best_sampler_counts = best_samplers.groupby(['Variable_Bin', 'Amostrador']).size().unstack(fill_value=0)
+
+        # Calculate percentage of best results per bin (each bin should sum to 100%)
+        best_sampler_percentages = (best_sampler_counts.T / best_sampler_counts.sum(axis=1)).T * 100
+
+        # Adjust bin centers by adding 12.5 to each bin
+        bin_centers = best_sampler_percentages.index + 12.5
+
+        # Create figure
+        plt.figure(figsize=(10, 8))
+
+        # Plot each sampler's percentage of Rank 1 within each bin, centered on the bin
+        for sampler, color in self.sampler_colors.items():
+            if sampler in best_sampler_percentages.columns:
+                plt.plot(
+                    bin_centers,  # Centered variable bins
+                    best_sampler_percentages[sampler],  # Percentage of Rank 1 per bin
+                    color=color,
+                    label=sampler,
+                    marker='o',
+                    markersize=7.5  # Set dot size
+                )
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis')
+        plt.ylabel('Porcentagem de vezes obtendo o melhor resultado')
+
+        # Custom legend
+        handles = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
+        ]
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'best_sampler_percentage_per_bin.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+
+    def plot_best_sampler_percentage_per_bin(self):
+        # Create a new column for binning variable counts into intervals of 25
+        self.results_df['Variable_Bin'] = (self.results_df['Número de variáveis'] // 25) * 25
+
+        # Define columns that uniquely identify a test
+        test_columns = [
+            'Parâmetro: Número de trabalhos',
+            'Parâmetro: Máximo número de operações em um trabalho',
+            'Parâmetro: Número de máquinas',
+            'Parâmetro: Número de equipamentos possíveis'
+        ]
+
+        # Group by test and rank samplers based on energy within each test
+        ranked_results = (
+            self.results_df
+            .sort_values(by=['Menor Energia'])  # Sort by energy within each test
+            .groupby(test_columns + ['Variable_Bin'])
+            .apply(lambda x: x.assign(Rank=range(1, len(x) + 1)))  # Assign ranks within each test and bin
+            .reset_index(drop=True)
+        )
+
+        # Filter only Rank 1 results (best samplers)
+        best_samplers = ranked_results[ranked_results['Rank'] == 1]
+
+        # Count the number of times each sampler was best in each bin
+        best_sampler_counts = best_samplers.groupby(['Variable_Bin', 'Amostrador']).size().unstack(fill_value=0)
+
+        # Calculate percentage of best results per bin (each bin should sum to 100%)
+        best_sampler_percentages = (best_sampler_counts.T / best_sampler_counts.sum(axis=1)).T * 100
+
+        # Adjust bin centers by adding 12.5 to each bin
+        bin_centers = best_sampler_percentages.index + 12.5
+
+        # Create figure
+        plt.figure(figsize=(10, 8))
+
+        # Plot each sampler's percentage of Rank 1 within each bin, centered on the bin
+        for sampler, color in self.sampler_colors.items():
+            if sampler in best_sampler_percentages.columns:
+                plt.plot(
+                    bin_centers,  # Centered variable bins
+                    best_sampler_percentages[sampler],  # Percentage of Rank 1 per bin
+                    color=color,
+                    label=sampler,
+                    marker='o',
+                    markersize=7.5  # Set dot size
+                )
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis')
+        plt.ylabel('Porcentagem de vezes obtendo o melhor resultado')
+
+        # Set x-ticks at the center of each bin
+        plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 24)}" for bin in best_sampler_percentages.index], rotation=45)
+
+        # Custom legend
+        handles = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
+        ]
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'best_sampler_percentage_per_bin.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_chain_break_histogram(self):
+        # Filter data for DwaveSampler
+        dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
+
+        # Bin the variable counts into intervals of 25 and calculate the mean chain break percentage within each bin
+        dwave_data['Variable_Bin'] = (dwave_data['Número de variáveis'] // 25) * 25
+        bin_means = dwave_data.groupby('Variable_Bin')['Percentual de amostras com alta quantidade de chain breaks (>15%)'].mean()
+
+        # Create the histogram
+        plt.figure(figsize=(10, 6))
+        plt.bar(
+            bin_means.index + 12.5,  # Center bins by shifting by 12.5
+            bin_means,  # Height of each bar
+            width=25,  # Width of each bin
+            color='blue',
+            edgecolor='black'
+        )
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis (em bins de 25)')
+        plt.ylabel('Percentual médio de chain breaks altos (>15%)')
+        plt.title('Distribuição do Percentual de Chain Breaks Altos (>15%) para DwaveSampler')
+
+        # Setting x-ticks to mark each bin
+        plt.xticks(bin_means.index + 12.5, [f"{int(bin)}-{int(bin + 24)}" for bin in bin_means.index], rotation=45)
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'chain_break_histogram.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+
+    def plot_variables_vs_interactions(self):
+        # Filter data for DwaveSampler
+        dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
+
+        # Create the scatter plot
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            x=dwave_data['Número de variáveis'],
+            y=dwave_data['Número de interações'],
+            color='blue',
+            marker='o',
+            s=25,  # Size of each point
+            label="DwaveSampler"
+        )
+
+        # Adding labels and title
+        plt.xlabel('Número de variáveis')
+        plt.ylabel('Número de interações')
+        plt.title('Relação entre Número de Variáveis e Número de Interações para DwaveSampler')
+
+        # Display the legend
+        plt.legend()
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'variables_vs_interactions.png')
         plt.tight_layout()
         plt.savefig(output_path)
 

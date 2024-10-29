@@ -237,3 +237,8 @@ def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_pa
     # Save the figure, using bbox_inches='tight' to remove extra white space
     plt.savefig(gantt_chart_path + image_title + '.png', bbox_inches='tight')
     plt.close()
+
+def isQuantumSampler(sampler_name):
+    if sampler_name == 'DwaveSampler' or sampler_name == 'LeapHybridSampler':
+        return True
+    return False
