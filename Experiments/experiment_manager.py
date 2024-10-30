@@ -11,6 +11,7 @@ import math
 from itertools import product
 import time
 from tqdm import tqdm
+import seaborn as sns 
 
 class ExperimentManager:
     
@@ -224,9 +225,8 @@ class ExperimentManager:
         plt.yscale('log')
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
+        plt.xlabel('Variáveis')
         plt.ylabel('Menor energia')
-        plt.title('Menor energia obtida nos experimentos')
 
         # Custom legend
         handles = [
@@ -234,6 +234,9 @@ class ExperimentManager:
             for sampler, color in self.sampler_colors.items()
         ]
         plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
@@ -264,9 +267,8 @@ class ExperimentManager:
         plt.yscale('log')
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
+        plt.xlabel('Variáveis')
         plt.ylabel('Tempo de amostragem (segundos)')
-        plt.title('Tempo de amostragem nos experimentos')
 
         # Custom legend
         handles = [
@@ -312,7 +314,7 @@ class ExperimentManager:
             )
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
+        plt.xlabel('Variáveis')
         plt.ylabel('Amostrador')
         plt.title('Melhor resultado (Menor Energia) por Teste e Número de Variáveis')
 
@@ -381,8 +383,11 @@ class ExperimentManager:
                 )
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
-        plt.ylabel('Porcentagem de vezes obtendo o melhor resultado')
+        plt.xlabel('Variáveis')
+        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido')
+
+        # Set x-ticks at the center of each bin
+        plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 24)}" for bin in best_sampler_percentages.index], rotation=45)
 
         # Custom legend
         handles = [
@@ -390,6 +395,9 @@ class ExperimentManager:
             for sampler, color in self.sampler_colors.items()
         ]
         plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
@@ -400,8 +408,67 @@ class ExperimentManager:
         # Close the plot to free memory
         plt.close()
 
+    def plot_average_chain_breaks_vs_variables(self):
+        # Filter data for DwaveSampler and select relevant columns
+        dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
 
-    def plot_best_sampler_percentage_per_bin(self):
+        # Create the scatter plot
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            x=dwave_data['Número de variáveis'],
+            y=dwave_data['Percentual médio de chainbreaks entre as amostras'],
+            color='blue',
+            marker='o',
+            s=25,  # Size of each point
+        )
+
+        # Adding labels and title
+        plt.xlabel('Variáveis')
+        plt.ylabel('Percentual médio de chain breaks')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'average_chain_breaks_vs_variables.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_variables_vs_interactions(self):
+        # Filter data for DwaveSampler
+        dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
+
+        # Create the scatter plot
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            x=dwave_data['Número de variáveis'],
+            y=dwave_data['Número de interações'],
+            color='blue',
+            marker='o',
+            s=25,  # Size of each point
+        )
+
+        # Adding labels and title
+        plt.xlabel('Variáveis')
+        plt.ylabel('Interações')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'variables_vs_interactions.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_sampler_ranks_per_bin(self):
         # Create a new column for binning variable counts into intervals of 25
         self.results_df['Variable_Bin'] = (self.results_df['Número de variáveis'] // 25) * 25
 
@@ -422,6 +489,86 @@ class ExperimentManager:
             .reset_index(drop=True)
         )
 
+        # Count how often each sampler achieved Rank 1 in each bin
+        best_sampler_counts = ranked_results[ranked_results['Rank'] == 1].groupby(['Variable_Bin', 'Amostrador']).size().unstack(fill_value=0)
+
+        # Calculate ranks for each sampler within each bin based on the number of times it achieved Rank 1
+        best_sampler_ranks = best_sampler_counts.rank(axis=1, method='min', ascending=False)
+
+        # Adjust bin centers by adding 12.5 to each bin
+        bin_centers = best_sampler_ranks.index + 12.5
+
+        # Create figure
+        plt.figure(figsize=(10, 8))
+
+        # Plot each sampler's rank within each bin, centered on the bin
+        for sampler, color in self.sampler_colors.items():
+            if sampler in best_sampler_ranks.columns:
+                plt.plot(
+                    bin_centers,  # Centered variable bins
+                    best_sampler_ranks[sampler],  # Rank within each bin
+                    color=color,
+                    label=sampler,
+                    marker='o',
+                    markersize=7.5  # Set dot size
+                )
+
+        # Adding labels and title
+        plt.xlabel('Variáveis')
+        plt.ylabel('Rank (1 = Melhor)')
+        plt.title('Rank de cada Amostrador por Bin de Variáveis')
+
+        # Set y-axis to show ranks (from 1 to max rank) and invert it so Rank 1 is at the top
+        max_rank = best_sampler_ranks.shape[1]  # Number of samplers (max rank)
+        plt.yticks(range(1, max_rank + 1))
+        plt.gca().invert_yaxis()  # Invert y-axis to have Rank 1 at the top
+
+        # Set x-ticks at the center of each bin
+        plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 24)}" for bin in best_sampler_ranks.index], rotation=45)
+
+        # Custom legend
+        handles = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
+            for sampler, color in self.sampler_colors.items()
+        ]
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'sampler_ranks_per_bin.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_best_sampler_percentage_per_bin_closer(self):
+        # Filter data to include only rows with 'Número de variáveis' up to 75
+        filtered_df = self.results_df[self.results_df['Número de variáveis'] <= 75]
+
+        # Create a new column for binning variable counts into intervals of 15
+        filtered_df['Variable_Bin'] = (filtered_df['Número de variáveis'] // 15) * 15
+
+        # Define columns that uniquely identify a test
+        test_columns = [
+            'Parâmetro: Número de trabalhos',
+            'Parâmetro: Máximo número de operações em um trabalho',
+            'Parâmetro: Número de máquinas',
+            'Parâmetro: Número de equipamentos possíveis'
+        ]
+
+        # Group by test and rank samplers based on energy within each test
+        ranked_results = (
+            filtered_df
+            .sort_values(by=['Menor Energia'])  # Sort by energy within each test
+            .groupby(test_columns + ['Variable_Bin'])
+            .apply(lambda x: x.assign(Rank=range(1, len(x) + 1)))  # Assign ranks within each test and bin
+            .reset_index(drop=True)
+        )
+
         # Filter only Rank 1 results (best samplers)
         best_samplers = ranked_results[ranked_results['Rank'] == 1]
 
@@ -431,8 +578,8 @@ class ExperimentManager:
         # Calculate percentage of best results per bin (each bin should sum to 100%)
         best_sampler_percentages = (best_sampler_counts.T / best_sampler_counts.sum(axis=1)).T * 100
 
-        # Adjust bin centers by adding 12.5 to each bin
-        bin_centers = best_sampler_percentages.index + 12.5
+        # Adjust bin centers by adding 7.5 to each bin (half of the bin size)
+        bin_centers = best_sampler_percentages.index + 7.5
 
         # Create figure
         plt.figure(figsize=(10, 8))
@@ -450,11 +597,12 @@ class ExperimentManager:
                 )
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
-        plt.ylabel('Porcentagem de vezes obtendo o melhor resultado')
+        plt.xlabel('Variáveis')
+        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido')
+        plt.title('Porcentagem de Melhor Resultado por Bin de Variáveis (até 75 variáveis)')
 
         # Set x-ticks at the center of each bin
-        plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 24)}" for bin in best_sampler_percentages.index], rotation=45)
+        plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 14)}" for bin in best_sampler_percentages.index], rotation=45)
 
         # Custom legend
         handles = [
@@ -463,77 +611,104 @@ class ExperimentManager:
         ]
         plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
 
+        # Add grid
+        plt.grid(True, alpha=0.3)
+
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
-        output_path = os.path.join(self.results_dir_path, 'best_sampler_percentage_per_bin.png')
+        output_path = os.path.join(self.results_dir_path, 'best_sampler_percentage_per_bin_closer.png')
         plt.tight_layout()
         plt.savefig(output_path)
 
         # Close the plot to free memory
         plt.close()
 
-    def plot_chain_break_histogram(self):
-        # Filter data for DwaveSampler
-        dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
-
-        # Bin the variable counts into intervals of 25 and calculate the mean chain break percentage within each bin
-        dwave_data['Variable_Bin'] = (dwave_data['Número de variáveis'] // 25) * 25
-        bin_means = dwave_data.groupby('Variable_Bin')['Percentual de amostras com alta quantidade de chain breaks (>15%)'].mean()
-
-        # Create the histogram
-        plt.figure(figsize=(10, 6))
-        plt.bar(
-            bin_means.index + 12.5,  # Center bins by shifting by 12.5
-            bin_means,  # Height of each bar
-            width=25,  # Width of each bin
-            color='blue',
-            edgecolor='black'
-        )
-
-        # Adding labels and title
-        plt.xlabel('Número de variáveis (em bins de 25)')
-        plt.ylabel('Percentual médio de chain breaks altos (>15%)')
-        plt.title('Distribuição do Percentual de Chain Breaks Altos (>15%) para DwaveSampler')
-
-        # Setting x-ticks to mark each bin
-        plt.xticks(bin_means.index + 12.5, [f"{int(bin)}-{int(bin + 24)}" for bin in bin_means.index], rotation=45)
-
-        # Save the plot to the specified directory
-        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
-        output_path = os.path.join(self.results_dir_path, 'chain_break_histogram.png')
-        plt.tight_layout()
-        plt.savefig(output_path)
-
-        # Close the plot to free memory
-        plt.close()
-
-
-    def plot_variables_vs_interactions(self):
-        # Filter data for DwaveSampler
+    def plot_high_chain_break_percentage_vs_variables(self):
+        # Filter data for DwaveSampler and select relevant columns
         dwave_data = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
 
         # Create the scatter plot
         plt.figure(figsize=(10, 6))
         plt.scatter(
             x=dwave_data['Número de variáveis'],
-            y=dwave_data['Número de interações'],
-            color='blue',
+            y=dwave_data['Percentual de amostras com alta quantidade de chain breaks (>15%)'],
+            color='green',
             marker='o',
             s=25,  # Size of each point
-            label="DwaveSampler"
         )
 
         # Adding labels and title
-        plt.xlabel('Número de variáveis')
-        plt.ylabel('Número de interações')
-        plt.title('Relação entre Número de Variáveis e Número de Interações para DwaveSampler')
+        plt.xlabel('Variáveis')
+        plt.ylabel('Percentual de amostras com alta quantidade de chain breaks (>15%)')
 
-        # Display the legend
-        plt.legend()
+        # Add grid
+        plt.grid(True, alpha=0.3)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
-        output_path = os.path.join(self.results_dir_path, 'variables_vs_interactions.png')
+        output_path = os.path.join(self.results_dir_path, 'high_chain_break_percentage_vs_variables.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_operations_vs_machines(self):
+        # Filter data for DwaveSampler if necessary, or use all data
+        data = self.results_df  # Assuming all rows are relevant for this plot
+
+        # Create the scatter plot
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            x=data['Número de operações'],
+            y=data['Número de máquinas distintas utilizadas'],
+            color='purple',
+            marker='o',
+            s=25,  # Size of each point
+        )
+
+        # Adding labels and title
+        plt.xlabel('Número de Operações')
+        plt.ylabel('Número de Máquinas')
+        plt.title('Distribuição de Operações vs. Máquinas nos Experimentos')
+
+        # Add grid
+        plt.grid(True, alpha=0.3)
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'operations_vs_machines.png')
+        plt.tight_layout()
+        plt.savefig(output_path)
+
+        # Close the plot to free memory
+        plt.close()
+
+    def plot_operations_vs_machines_heatmap(self):
+        heatmap_data_trim = self.results_df[self.results_df['Amostrador'] == 'DwaveSampler']
+        # Group data by 'Número de operações' and 'Número de máquinas distintas utilizadas' and count occurrences
+        heatmap_data = heatmap_data_trim.groupby(
+            ['Número de máquinas distintas utilizadas', 'Número de operações']
+        ).size().unstack(fill_value=0)
+
+        # Create the heatmap
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(
+            heatmap_data,
+            annot=True,
+            cmap="YlGnBu",
+            cbar_kws={'label': 'Quantidade de Ocorrências'}
+        )
+
+        plt.gca().invert_yaxis()
+
+        # Adding labels and title
+        plt.xlabel('Número de Operações')
+        plt.ylabel('Número de Máquinas')
+
+        # Save the plot to the specified directory
+        os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
+        output_path = os.path.join(self.results_dir_path, 'operations_vs_machines_heatmap.png')
         plt.tight_layout()
         plt.savefig(output_path)
 
