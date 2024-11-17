@@ -225,15 +225,15 @@ class ExperimentManager:
         plt.yscale('log')
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Menor energia')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Menor energia', fontsize=14)
 
         # Custom legend
         handles = [
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -267,15 +267,15 @@ class ExperimentManager:
         plt.yscale('log')
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Tempo de amostragem (segundos)')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Tempo de amostragem (segundos)', fontsize=14)
 
         # Custom legend
         handles = [
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
@@ -314,16 +314,15 @@ class ExperimentManager:
             )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Amostrador')
-        plt.title('Melhor resultado (Menor Energia) por Teste e Número de Variáveis')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Amostrador', fontsize=14)
 
         # Custom legend
         handles = [
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
@@ -383,8 +382,8 @@ class ExperimentManager:
                 )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido', fontsize=14)
 
         # Set x-ticks at the center of each bin
         plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 24)}" for bin in best_sampler_percentages.index], rotation=45)
@@ -394,7 +393,7 @@ class ExperimentManager:
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -423,8 +422,8 @@ class ExperimentManager:
         )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Percentual médio de chain breaks')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Percentual médio de chain breaks', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -453,8 +452,8 @@ class ExperimentManager:
         )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Interações')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Interações', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -514,9 +513,8 @@ class ExperimentManager:
                 )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Rank (1 = Melhor)')
-        plt.title('Rank de cada Amostrador por Bin de Variáveis')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Rank (1 = Melhor)', fontsize=14)
 
         # Set y-axis to show ranks (from 1 to max rank) and invert it so Rank 1 is at the top
         max_rank = best_sampler_ranks.shape[1]  # Number of samplers (max rank)
@@ -531,7 +529,7 @@ class ExperimentManager:
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -597,9 +595,9 @@ class ExperimentManager:
                 )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido')
-        plt.title('Porcentagem de Melhor Resultado por Bin de Variáveis (até 75 variáveis)')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Porcentagem de vezes em que o melhor resultado foi obtido', fontsize=14)
+        plt.title('Porcentagem de Melhor Resultado por Bin de Variáveis (até 75 variáveis)', fontsize=14)
 
         # Set x-ticks at the center of each bin
         plt.xticks(bin_centers, [f"{int(bin)}-{int(bin + 14)}" for bin in best_sampler_percentages.index], rotation=45)
@@ -609,7 +607,7 @@ class ExperimentManager:
             plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color, markersize=10, linestyle='') 
             for sampler, color in self.sampler_colors.items()
         ]
-        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(handles, self.sampler_colors.keys(), title="Amostrador", bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -638,8 +636,8 @@ class ExperimentManager:
         )
 
         # Adding labels and title
-        plt.xlabel('Variáveis')
-        plt.ylabel('Percentual de amostras com alta quantidade de chain breaks (>15%)')
+        plt.xlabel('Variáveis', fontsize=14)
+        plt.ylabel('Percentual de amostras com alta quantidade de chain breaks (>15%)', fontsize=10)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -668,9 +666,8 @@ class ExperimentManager:
         )
 
         # Adding labels and title
-        plt.xlabel('Número de Operações')
-        plt.ylabel('Número de Máquinas')
-        plt.title('Distribuição de Operações vs. Máquinas nos Experimentos')
+        plt.xlabel('Número de Operações', fontsize=14)
+        plt.ylabel('Número de Máquinas', fontsize=14)
 
         # Add grid
         plt.grid(True, alpha=0.3)
@@ -703,8 +700,8 @@ class ExperimentManager:
         plt.gca().invert_yaxis()
 
         # Adding labels and title
-        plt.xlabel('Número de Operações')
-        plt.ylabel('Número de Máquinas')
+        plt.xlabel('Número de Operações', fontsize=14)
+        plt.ylabel('Número de Máquinas', fontsize=14)
 
         # Save the plot to the specified directory
         os.makedirs(self.results_dir_path, exist_ok=True)  # Ensure the directory exists
