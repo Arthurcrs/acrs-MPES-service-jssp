@@ -1,3 +1,0 @@
-Amostrador,Número de trabalhos,Número de máquinas distintas utilizadas,Número de equipamentos distintos utilizados,Número de operações,Timespan,Número de variáveis,Número de interações,Menor Energia,Tempo de amostragem,Percentual de soluções válidas,Percentual médio de chainbreaks entre as amostras,Percentual de amostras com alta quantidade de chain breaks (>15%)
-SimulatedAnnealing,2,2,2,2,4,12,36,6.0,0.16925716400146484,99.8,,
-TabuSampler,2,2,2,2,4,12,36,6.0,21.000308990478516,100.0,,

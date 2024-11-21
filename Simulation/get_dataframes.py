@@ -16,15 +16,15 @@ from tabu import TabuSampler
 from greedy import SteepestDescentSampler
 
 
-results_dir_path = 'Simulation/Results/' + '150_variables' + '/'
+results_dir_path = 'Simulation/Results/' + '50_variables' + '/'
 
 n_reads = 1000
 samplers = [
-    # {'name': 'DwaveSampler', 'sampler': EmbeddingComposite(DWaveSampler())},
-    # {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
+    {'name': 'DwaveSampler', 'sampler': EmbeddingComposite(DWaveSampler())},
+    {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
     {'name': 'SimulatedAnnealing', 'sampler': SimulatedAnnealingSampler()},
     {'name': 'TabuSampler', 'sampler': TabuSampler()},
-    # {'name': 'SteepestDescentSampler', 'sampler': SteepestDescentSampler()}
+    {'name': 'SteepestDescentSampler', 'sampler': SteepestDescentSampler()}
 ]
 
 results_columns = [

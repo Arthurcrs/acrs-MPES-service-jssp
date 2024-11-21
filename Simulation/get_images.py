@@ -8,7 +8,7 @@ import pickle
 
 from utils import *
 
-results_dir_path = 'Simulation/Results/' + '150_variables_2024-11-20_16-48-27' + '/'
+results_dir_path = 'Simulation/Results/' + '50_variables' + '/'
 images_dir_path = results_dir_path + 'Images/'
 
 samplers = [
@@ -43,7 +43,3 @@ for sampler in samplers:
                                 title=None)
     except:
         print('Could not generate the ' + sampler + ' Gantt Diagram')
-    
-
-
-

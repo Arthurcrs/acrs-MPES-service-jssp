@@ -47,7 +47,8 @@ def generate_sjssp(parameters):
     num_machines = count_unique_machines(jobs)
     min_timespan = 1 + num_operations // num_machines
     max_timespan = 1 + num_operations * 2
-    timespan = math.ceil((min_timespan + max_timespan)/2)
+    timespan_reduction_factor = 0.75
+    timespan = math.ceil((min_timespan + max_timespan * timespan_reduction_factor)/2)
 
     # Generate machine downtimes
     first_half_timespan = timespan // 2
@@ -74,12 +75,12 @@ def export_sjssp(jobs, machine_downtimes, timespan, makespan_function_max_value,
     with open(results_dir_path + 'sjssp.pkl', 'wb') as file:
         pickle.dump(sjssp, file)
 
-desired_variables_after_trim = 150
+desired_variables_after_trim = 50
 max_number_of_attempts = 1000
 parameters = {
     'n_jobs' : 3,
-    'n_possible_machines': 4,
     'max_op_in_job': 3,
+    'n_possible_machines': 2,
     'n_possible_equipments': 2
 }
 results_dir_path = 'Simulation/Results/' + str(desired_variables_after_trim) + '_variables_' + get_current_datetime_as_string() + '/'
