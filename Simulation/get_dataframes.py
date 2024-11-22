@@ -16,7 +16,7 @@ from tabu import TabuSampler
 from greedy import SteepestDescentSampler
 
 
-results_dir_path = 'Simulation/Results/' + '50_variables' + '/'
+results_dir_path = 'Simulation/Results/' + '150_variables' + '/'
 
 n_reads = 1000
 samplers = [

@@ -1,4 +1,0 @@
-Amostrador,Número de trabalhos,Número de máquinas distintas utilizadas,Número de equipamentos distintos utilizados,Número de operações,Timespan,Número de variáveis,Número de interações,Menor energia,Maior energia,Energia média,Desvio padrão de energia,Mediana de energia,Tempo de amostragem,Percentual de soluções válidas,Percentual médio de chainbreaks entre as amostras,Percentual de amostras com alta quantidade de chain breaks (>15%)
-SimulatedAnnealing,4,3,1,15,15,300,8428,19500.0,146728984500.0,5927238544.16,28709498511.49983,10161250.0,6.838593482971191,96.0,,
-TabuSampler,4,3,1,15,15,300,8428,1875.0,34375.0,12045.06,5829.703285451155,9500.0,21.02441668510437,100.0,,
-SteepestDescentSampler,4,3,1,15,15,300,8428,84375.0,585986407500.0,209249806103.065,122630342485.54466,146728609500.0,0.05851125717163086,12.7,,
