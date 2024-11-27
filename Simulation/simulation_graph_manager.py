@@ -45,7 +45,6 @@ class SimulationGraphsManager:
         plt.close()
 
     def plot_percent_of_valid_solutions(self):
-        # filtered_data = self.results_df[self.results_df['Amostrador'] != 'LeapHybridSampler']
         filtered_data = self.results_df
         samplers = filtered_data['Amostrador']
         percent_valid = filtered_data['Percentual de soluções válidas']
@@ -62,16 +61,14 @@ class SimulationGraphsManager:
 
     def plot_energies_histogram(self):
         plt.figure(figsize=(10, 6))
-        # Create a histogram for each sampler using their specific colors and without transparency
         for sampler, color in self.sampler_colors.items():
-            # Filter the energies for the current sampler
             sampler_energies = self.energies_df[self.energies_df['Amostrador'] == sampler]['Energia']
-            plt.hist(sampler_energies, bins=100, color=color, label=sampler, log=True)  # Increased bins to 100
+            plt.hist(sampler_energies, bins=100, color=color, label=sampler, log=True)
 
         plt.xlabel('Energia', fontsize=self.label_font_size)
         plt.ylabel('Frequência', fontsize=self.label_font_size)
         plt.title('Histograma de Energias')
-        plt.xscale('log')  # Applying logarithmic scale to x-axis
+        plt.xscale('log')
         plt.legend(title='Amostrador')
         plt.tight_layout()
 

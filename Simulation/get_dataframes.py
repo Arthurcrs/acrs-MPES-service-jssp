@@ -76,11 +76,8 @@ for sampler in samplers:
     solution = sampleset.first
     energies = sampleset.record.energy
 
-    # Solution df
     solution_df = solution_to_dataframe(solution.sample,jobs)
     solution_df.to_csv(results_dir_path + sampler['name'] + '_solution.csv', index=False)
-
-    # Append to results df
     new_row = pd.DataFrame([{
         'Amostrador': sampler['name'],
         'Número de trabalhos': len(jobs),
@@ -105,7 +102,6 @@ for sampler in samplers:
 
     results_df = pd.concat([results_df, new_row], ignore_index=True)
     
-    # Append to energies df
     for energy, cb in zip(energies, chain_breaks_data):
         new_row = pd.DataFrame([{
             'Amostrador': sampler['name'],

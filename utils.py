@@ -7,6 +7,7 @@ import datetime
 from matplotlib.patches import Patch
 import matplotlib.ticker as mticker
 import matplotlib.patches as mpatches
+import json
 
 def parse_label(label):
     job_position, machine, start_time = label.split(',')
@@ -39,7 +40,6 @@ def solution_to_dataframe(solution, jobs):
             durations.append(duration)
             start_times.append(parsed_label['start_time'])
 
-    # Create a DataFrame from the extracted information
     df = pd.DataFrame({
         'job': job_names,
         'position': positions,
@@ -178,63 +178,35 @@ def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_pa
     values = get_colors(len(unique_jobs))
     df['color'] = np.select(conditions, values)
 
-    # Create the figure and axis
-    fig, ax = plt.subplots(figsize=(8, 8))  # Adjust figsize to get square proportions
-
-    # Add edge color to bars to separate consecutive operations
+    fig, ax = plt.subplots(figsize=(8, 8))
     axx = ax.barh(df['machine'], df['duration'], align='center', left=df['start_time'], 
-                  color=df['color'], edgecolor='black', linewidth=1.5, label=df['position'], alpha=0.85, height=1.0)  # Set height=1.0 to remove vertical spacing
+                  color=df['color'], edgecolor='black', linewidth=1.5, label=df['position'], alpha=0.85, height=1.0)
 
-    # Add machine downtimes with hatch patterns
     for machine, downtimes in machine_downtimes.items():
         for downtime in downtimes:
             ax.barh(machine, 1, left=downtime, color='none', edgecolor='black', 
                     linewidth=1.5, height=1.0, hatch='//', label='Downtime')
 
-    # Set the x-axis limit based on timespan if provided, else use maximum end_time from data
     max_x = timespan if timespan else df['end_time'].max()
     ax.set_xlim(0, max_x)
-
-    # Set y-axis to display all machines, even if they have no operations
-    all_machines = sorted(set(df['machine']).union(machine_downtimes.keys()))  # Combine machines with jobs and downtimes
-    ax.set_yticks(all_machines)  # Ensure all machines are included in y-axis
-
-    # Set the limits for the y-axis to control scaling
-    ax.set_ylim(min(all_machines) - 0.5, max(all_machines) + 0.5)  # Adjust to give some padding
-
-    # Set equal scaling for both axes
+    all_machines = sorted(set(df['machine']).union(machine_downtimes.keys()))
+    ax.set_yticks(all_machines)
+    ax.set_ylim(min(all_machines) - 0.5, max(all_machines) + 0.5)
     ax.set_aspect('equal', adjustable='box')
-
-    # Force the x-axis to display all integer values
-    ax.set_xticks(np.arange(0, max_x + 1, 1))  # Set x-ticks for every integer from 0 to max_x
-
-    # Set x-axis and y-axis labels
+    ax.set_xticks(np.arange(0, max_x + 1, 1))
     ax.set_xlabel('Instante')
     ax.set_ylabel('Máquina', labelpad=10)
 
-    # Add legend for jobs and downtimes
     handles = []
     for job, color in zip(pd.unique(df['job']), pd.unique(df['color'])):
         handles.append(mpatches.Patch(color=color, label=job))
 
-    # Add hatch pattern to legend
     handles.append(mpatches.Patch(facecolor='none', edgecolor='black', hatch='//', label='Inatividade'))
-
-    # Move legend outside of the plot
     plt.legend(handles=handles, title='Trabalhos', bbox_to_anchor=(1.05, 1), loc='upper left')
-
-    # Set the y-ticks to represent the machines
     ax.bar_label(axx, df['position'], label_type='center')
-
-    # Remove all gridlines
     ax.grid(False)
-
     plt.title(title)
-
-    # Adjust the layout to make room for the legend
-    plt.tight_layout(pad=0.5, rect=[0, 0, 0.85, 1])  # Adjust layout to fit the legend outside the plot
-
-    # Save the figure, using bbox_inches='tight' to remove extra white space
+    plt.tight_layout(pad=0.5, rect=[0, 0, 0.85, 1])
     plt.savefig(gantt_chart_path + image_title + '.png', bbox_inches='tight')
     plt.close()
 
@@ -242,3 +214,20 @@ def isQuantumSampler(sampler_name):
     if sampler_name == 'DwaveSampler' or sampler_name == 'LeapHybridSampler':
         return True
     return False
+
+def export_sjssp_as_text(sjssp, result_path):
+    with open(result_path + 'sjssp_text.txt', 'w') as file:
+        for key, value in sjssp.items():
+            file.write(f'{key}: {format_value(value)}\n')
+
+def format_value(value, indent=4):
+    if isinstance(value, dict):
+        formatted_items = [f"{k}: {format_value(v, indent + 4)}" for k, v in value.items()]
+        return "{\n" + ",\n".join(" " * indent + item for item in formatted_items) + "\n" + " " * (indent - 4) + "}"
+    elif isinstance(value, list):
+        if all(not isinstance(i, (list, dict)) for i in value):
+            return "[" + ", ".join(format_value(i) for i in value) + "]"
+        else:
+            return "[\n" + ",\n".join(" " * (indent + 4) + format_value(i, indent + 4) for i in value) + "\n" + " " * indent + "]"
+    else:
+        return str(value)

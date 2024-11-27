@@ -46,8 +46,6 @@ machine_downtimes = sjssp['machine_downtimes']
 timespan = sjssp['timespan']
 makespan_function_max_value = sjssp['makespan_function_max_value']
 
-# 37748736
-
 chain_strength_values = [
                         1,
                         makespan_function_max_value * 0.2,

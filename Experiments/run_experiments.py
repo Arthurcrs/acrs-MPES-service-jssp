@@ -18,8 +18,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 results_dir_path = "Experiments/Results/" + get_current_datetime_as_string() + "/"
 
 samplers = [
-    # {'name': 'DwaveSampler', 'sampler': EmbeddingComposite(DWaveSampler())},
-    # {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
+    {'name': 'DwaveSampler', 'sampler': EmbeddingComposite(DWaveSampler())},
+    {'name': 'LeapHybridSampler', 'sampler': LeapHybridSampler()},
     {'name': 'SimulatedAnnealing', 'sampler': SimulatedAnnealingSampler()},
     {'name': 'TabuSampler', 'sampler': TabuSampler()},
     {'name': 'SteepestDescentSampler', 'sampler': SteepestDescentSampler()}

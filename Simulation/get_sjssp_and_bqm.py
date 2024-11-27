@@ -19,38 +19,28 @@ def generate_sjssp(parameters):
     n_possible_equipments = parameters['n_possible_equipments']
     max_operation_duration = 2
 
-    # Generate jobs
     for job_id in range(1, n_jobs + 1):
         job_name = f"job_{job_id}"
         n_operations = random.randint(1, max_op_in_job)
         operations = []
 
         for _ in range(n_operations):
-            # Choose a random set of machines for this operation
             machines = random.sample(range(1, n_possible_machines + 1), random.randint(1, n_possible_machines))
-            # Choose a random equipment or none
             if n_possible_equipments != 0:
                 equipment = [random.randint(1, n_possible_equipments)] if random.choice([True, False]) else []
             else:
                 equipment = []
-            # Set a random duration from 1 to max_operation_duration
             duration = random.randint(1, max_operation_duration)
-
-            # Append the operation to the job's operation list
             operations.append((machines, equipment, duration))
 
-        # Add the job to the jobs dictionary
         jobs[job_name] = operations
 
-    # Calculate timespan
     num_operations = count_total_operations(jobs)
     num_machines = count_unique_machines(jobs)
     min_timespan = 1 + num_operations // num_machines
     max_timespan = 1 + num_operations * 2
     timespan_reduction_factor = 0.75
     timespan = math.ceil((min_timespan + max_timespan * timespan_reduction_factor)/2)
-
-    # Generate machine downtimes
     first_half_timespan = timespan // 2
     for machine_id in range(1, n_possible_machines + 1):
         downtime_instant = random.randint(0, first_half_timespan - 1)
@@ -60,7 +50,6 @@ def generate_sjssp(parameters):
 
 def export_bqm(bqm, results_dir_path):
     with open(results_dir_path + 'bqm.pkl', 'wb') as file:
-        # Use pickle.dump to write the dictionary to the file
         pickle.dump(bqm, file)
 
 def export_sjssp(jobs, machine_downtimes, timespan, makespan_function_max_value, results_dir_path):
