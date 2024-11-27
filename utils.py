@@ -3,7 +3,11 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import datetime
 from matplotlib.patches import Patch
+import matplotlib.ticker as mticker
+import matplotlib.patches as mpatches
+import json
 
 def parse_label(label):
     job_position, machine, start_time = label.split(',')
@@ -36,7 +40,6 @@ def solution_to_dataframe(solution, jobs):
             durations.append(duration)
             start_times.append(parsed_label['start_time'])
 
-    # Create a DataFrame from the extracted information
     df = pd.DataFrame({
         'job': job_names,
         'position': positions,
@@ -50,8 +53,8 @@ def solution_to_dataframe(solution, jobs):
     return df
 
 def get_colors(n):
-    colormap = cm.viridis
-    colors = [mcolors.rgb2hex(colormap(i/n)) for i in range(n)]
+    colormap = cm.get_cmap('tab20')
+    colors = [mcolors.rgb2hex(colormap(i % 20 / 20)) for i in range(n)]
     return colors
 
 def export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path):
@@ -106,10 +109,6 @@ def count_total_operations(jobs):
         total_operations += len(operations)
     return total_operations
 
-"""
-# This will generate a sample without machine downtimes, with a given number of jobs and timespan, all having the same number of operations, all operations
-# can be executed by a set of a given number of machines, using a number of equipments, and with a set duration
-"""
 def generate_jssp_dict(n_jobs, n_operations_per_job, n_machines_per_operation, timespan, n_equipments_per_operation, operation_duration):
     jssp_dict = {
         "jobs": {},
@@ -151,3 +150,84 @@ def generate_jssp_dict_based_on_size(n):
     }
 
     return test_case
+
+def calculate_total_variables(jobs, timespan):
+    total_variables = 0
+    
+    for job, operations in jobs.items():
+        for operation in operations:
+            machines_for_operation = len(operation[0])
+            total_variables += machines_for_operation * timespan
+
+    return total_variables
+
+def get_current_datetime_as_string():
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d_%H-%M-%S")
+
+def get_percentage_of_valid_results(energies, makespan_function_max_value):
+    total_count = len(energies)
+    valid_count = np.sum(energies <= makespan_function_max_value)
+    valid_percentage = (valid_count / total_count) * 100
+    return valid_percentage
+
+def new_export_gantt_diagram(gantt_chart_path, image_title, solution_csv_file_path, machine_downtimes, timespan=None, title=None):
+    df = pd.read_csv(solution_csv_file_path)
+    unique_jobs = df['job'].unique()
+    conditions = [(df['job'] == job) for job in unique_jobs]
+    values = get_colors(len(unique_jobs))
+    df['color'] = np.select(conditions, values)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    axx = ax.barh(df['machine'], df['duration'], align='center', left=df['start_time'], 
+                  color=df['color'], edgecolor='black', linewidth=1.5, label=df['position'], alpha=0.85, height=1.0)
+
+    for machine, downtimes in machine_downtimes.items():
+        for downtime in downtimes:
+            ax.barh(machine, 1, left=downtime, color='none', edgecolor='black', 
+                    linewidth=1.5, height=1.0, hatch='//', label='Downtime')
+
+    max_x = timespan if timespan else df['end_time'].max()
+    ax.set_xlim(0, max_x)
+    all_machines = sorted(set(df['machine']).union(machine_downtimes.keys()))
+    ax.set_yticks(all_machines)
+    ax.set_ylim(min(all_machines) - 0.5, max(all_machines) + 0.5)
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_xticks(np.arange(0, max_x + 1, 1))
+    ax.set_xlabel('Instante')
+    ax.set_ylabel('Máquina', labelpad=10)
+
+    handles = []
+    for job, color in zip(pd.unique(df['job']), pd.unique(df['color'])):
+        handles.append(mpatches.Patch(color=color, label=job))
+
+    handles.append(mpatches.Patch(facecolor='none', edgecolor='black', hatch='//', label='Inatividade'))
+    plt.legend(handles=handles, title='Trabalhos', bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.bar_label(axx, df['position'], label_type='center')
+    ax.grid(False)
+    plt.title(title)
+    plt.tight_layout(pad=0.5, rect=[0, 0, 0.85, 1])
+    plt.savefig(gantt_chart_path + image_title + '.png', bbox_inches='tight')
+    plt.close()
+
+def isQuantumSampler(sampler_name):
+    if sampler_name == 'DwaveSampler' or sampler_name == 'LeapHybridSampler':
+        return True
+    return False
+
+def export_sjssp_as_text(sjssp, result_path):
+    with open(result_path + 'sjssp_text.txt', 'w') as file:
+        for key, value in sjssp.items():
+            file.write(f'{key}: {format_value(value)}\n')
+
+def format_value(value, indent=4):
+    if isinstance(value, dict):
+        formatted_items = [f"{k}: {format_value(v, indent + 4)}" for k, v in value.items()]
+        return "{\n" + ",\n".join(" " * indent + item for item in formatted_items) + "\n" + " " * (indent - 4) + "}"
+    elif isinstance(value, list):
+        if all(not isinstance(i, (list, dict)) for i in value):
+            return "[" + ", ".join(format_value(i) for i in value) + "]"
+        else:
+            return "[\n" + ",\n".join(" " * (indent + 4) + format_value(i, indent + 4) for i in value) + "\n" + " " * indent + "]"
+    else:
+        return str(value)

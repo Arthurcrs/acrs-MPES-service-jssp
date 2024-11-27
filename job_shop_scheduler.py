@@ -179,17 +179,18 @@ class JobShopScheduler:
             Sets labels with impossible task times due to machine downtimes to 0.
         """
         for m in self.machine_downtimes.keys():
-            for task in self.tasks_with_machine[m]:
-                for begin_downtime in self.machine_downtimes[m]:
-                    start = begin_downtime - task.duration + 1
-                    stop = begin_downtime
-                    if start < 0:
-                        start = 0
-                    for time in range(start,stop + 1):
-                        label = get_label(task, m, time)
-                        if label not in self.removed_labels:
-                            self.bqm.fix_variable(label, 0)
-                            self.removed_labels.append(label)
+            if m in self.tasks_with_machine:
+                for task in self.tasks_with_machine[m]:
+                    for begin_downtime in self.machine_downtimes[m]:
+                        start = begin_downtime - task.duration + 1
+                        stop = begin_downtime
+                        if start < 0:
+                            start = 0
+                        for time in range(start,stop + 1):
+                            label = get_label(task, m, time)
+                            if label not in self.removed_labels:
+                                self.bqm.fix_variable(label, 0)
+                                self.removed_labels.append(label)
         
     def _remove_absurd_times_labels(self):
         """
@@ -204,6 +205,8 @@ class JobShopScheduler:
                 current_job = task.job
 
             for t in range(predecessor_time):
+                if t > self.timespan:
+                    continue
                 for m in task.machines:
                     label = get_label(task, m, t)
                     if label not in self.removed_labels:
@@ -222,6 +225,8 @@ class JobShopScheduler:
 
             successor_time += task.duration
             for t in range(successor_time):
+                if self.timespan - t < 0:
+                    continue
                 for m in task.machines:
                     label = get_label(task, m, self.timespan - t)
                     if label not in self.removed_labels:
@@ -236,11 +241,11 @@ class JobShopScheduler:
         self.add_precedence_constraint()
         self.add_share_equipment_constraint()
 
+        # Add timespan function
+        self.add_makespan_function()
+
         # Pruning Variables
         self._remove_absurd_times_labels()
         self._remove_machine_downtime_labels()
-
-        # Add timespan function
-        self.add_makespan_function()
 
         return self.bqm

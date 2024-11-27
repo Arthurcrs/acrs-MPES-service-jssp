@@ -1,0 +1,6 @@
+Amostrador,Número de trabalhos,Número de máquinas distintas utilizadas,Número de equipamentos distintos utilizados,Número de operações,Timespan,Número de variáveis,Número de interações,Menor energia,Maior energia,Energia média,Desvio padrão de energia,Mediana de energia,Tempo de amostragem,Percentual de soluções válidas,Percentual médio de chainbreaks entre as amostras,Percentual de amostras com alta quantidade de chain breaks (>15%)
+DwaveSampler,4,3,2,16,16,250,5765,4394531641250.0,19042978937500.0,10240001124144.736,2412399014258.832,10253906734387.5,152.5230176448822,0.0,14.616000000000001,36.9
+LeapHybridSampler,4,3,2,16,16,250,5765,97500.0,97500.0,97500.0,0.0,97500.0,7.7210447788238525,100.0,,
+SimulatedAnnealing,4,3,2,16,16,250,5765,97500.0,1464843859375.0,78382371988.0,228759173099.98697,10175000.0,5.056584119796753,89.4,,
+TabuSampler,4,3,2,16,16,250,5765,4500.0,172500.0,47962.575,33200.37210776974,35000.0,21.016836166381836,100.0,,
+SteepestDescentSampler,4,3,2,16,16,250,5765,125000.0,2929697281255.0,1108897431204.11,615322402570.2994,732471187500.0,0.040404319763183594,9.8,,
